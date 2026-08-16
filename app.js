@@ -1,10 +1,6 @@
+import { getAuthUser, onAuthChange, signIn, signOut } from "./src/auth.js";
+
 const STORAGE_KEY = "trading-journal-platform-v1";
-const SESSION_KEY = "trading-journal-session";
-// Client-side gate only. This keeps the journal from being read by someone who opens the page,
-// but the check runs in the browser and these values ship in this file, so it is privacy, not
-// security. Edit the two values below to change the credentials.
-const AUTH_USERNAME = "0x_jstin";
-const AUTH_PASSWORD = "gamerx12";
 const ASSET_CATALOG_VERSION = 3;
 const RESULT_OPTIONS = ["TP", "SL", "Miss", "BE"];
 const RULE_LABELS = {
@@ -105,6 +101,7 @@ let assetSearchQuery = "";
 let ideaAssetSearchQuery = "";
 let ideaStatusFilter = "all";
 let calendarCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+let currentAuthUser = null;
 
 function buildDefaultAssets() {
   const fxSymbols = "EURUSD GBPUSD USDJPY USDCHF USDCAD AUDUSD NZDUSD EURGBP EURJPY EURCHF EURCAD EURAUD EURNZD GBPJPY GBPCHF GBPCAD GBPAUD GBPNZD AUDJPY AUDNZD AUDCAD AUDCHF NZDJPY NZDCAD NZDCHF CADJPY CADCHF CHFJPY USDZAR USDMXN USDTRY USDSEK USDNOK USDDKK USDPLN USDHUF USDCZK USDSGD USDHKD USDTHB USDCNH EURTRY EURZAR EURSEK EURNOK EURDKK EURPLN EURHUF EURCZK EURSGD GBPZAR GBPTRY GBPSEK GBPNOK GBPSGD AUDSGD SGDJPY";
@@ -168,28 +165,27 @@ const viewTitles = {
   account: "Account",
 };
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   bindNavigation();
   bindForms();
   bindImportExport();
   bindAuth();
-  if (isAuthenticated()) {
-    enterApp();
+  applyPreferences();
+
+  const user = await getAuthUser();
+  if (user) {
+    enterApp(user);
   } else {
     showLogin();
   }
+
+  onAuthChange((nextUser) => {
+    if (nextUser) enterApp(nextUser);
+    else showLogin();
+  });
+
   setInterval(renderLockout, 1000);
 });
-
-// sessionStorage rather than localStorage: closing the browser ends the session, which is the
-// point of the gate. Wrapped because storage throws on some file:// origins.
-function isAuthenticated() {
-  try {
-    return sessionStorage.getItem(SESSION_KEY) === AUTH_USERNAME;
-  } catch {
-    return false;
-  }
-}
 
 function bindAuth() {
   document.getElementById("loginForm").addEventListener("submit", handleLogin);
@@ -198,39 +194,44 @@ function bindAuth() {
   document.getElementById("accountExportBtn").addEventListener("click", () => document.getElementById("exportDataBtn").click());
 }
 
-function handleLogin(event) {
+async function handleLogin(event) {
   event.preventDefault();
-  const username = document.getElementById("loginUser").value.trim();
+  const email = document.getElementById("loginUser").value.trim();
   const password = document.getElementById("loginPass").value;
   const message = document.getElementById("loginMessage");
+  const button = event.submitter;
 
-  if (username !== AUTH_USERNAME || password !== AUTH_PASSWORD) {
-    message.textContent = "Incorrect username or password.";
+  message.textContent = "";
+  button.disabled = true;
+  button.textContent = "Signing in...";
+
+  try {
+    const user = await signIn(email, password);
+    document.getElementById("loginPass").value = "";
+    enterApp(user);
+  } catch (error) {
+    message.textContent = error.message || "Unable to sign in.";
     document.getElementById("loginPass").value = "";
     document.getElementById("loginPass").focus();
-    return;
+  } finally {
+    button.disabled = false;
+    button.textContent = "Sign in";
   }
-
-  try {
-    sessionStorage.setItem(SESSION_KEY, AUTH_USERNAME);
-  } catch {
-    // Storage unavailable: stay signed in for this page view only.
-  }
-  message.textContent = "";
-  document.getElementById("loginPass").value = "";
-  enterApp();
 }
 
-function handleLogout() {
+async function handleLogout() {
   try {
-    sessionStorage.removeItem(SESSION_KEY);
-  } catch {
-    // Nothing to clear.
+    await signOut();
+  } catch (error) {
+    alert(error.message || "Unable to log out.");
+    return;
   }
+  currentAuthUser = null;
   showLogin();
 }
 
-function enterApp() {
+function enterApp(user) {
+  currentAuthUser = user || currentAuthUser;
   document.getElementById("loginScreen").classList.add("hidden");
   document.getElementById("appShell").classList.remove("hidden");
   hydrateSettingsForms();
@@ -458,7 +459,7 @@ function showView(name) {
 
 
 function renderAccount() {
-  document.getElementById("accountUsername").textContent = AUTH_USERNAME;
+  document.getElementById("accountUsername").textContent = currentAuthUser?.email || "Trader";
 }
 function bindForms() {
   document.getElementById("newTradeForm").addEventListener("submit", handleNewTrade);
