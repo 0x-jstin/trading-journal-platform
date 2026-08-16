@@ -1,4 +1,5 @@
-import { getAuthUser, onAuthChange, signIn, signOut } from "./src/auth.js";
+import { getAuthUser, onAuthChange, signIn, signOut, signUp } from "./src/auth.js";
+import { loadCloudState, saveCloudState } from "./src/cloud.js";
 
 const STORAGE_KEY = "trading-journal-platform-v1";
 const ASSET_CATALOG_VERSION = 3;
@@ -102,6 +103,8 @@ let ideaAssetSearchQuery = "";
 let ideaStatusFilter = "all";
 let calendarCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let currentAuthUser = null;
+let cloudSyncTimer = null;
+let cloudSyncReady = false;
 
 function buildDefaultAssets() {
   const fxSymbols = "EURUSD GBPUSD USDJPY USDCHF USDCAD AUDUSD NZDUSD EURGBP EURJPY EURCHF EURCAD EURAUD EURNZD GBPJPY GBPCHF GBPCAD GBPAUD GBPNZD AUDJPY AUDNZD AUDCAD AUDCHF NZDJPY NZDCAD NZDCHF CADJPY CADCHF CHFJPY USDZAR USDMXN USDTRY USDSEK USDNOK USDDKK USDPLN USDHUF USDCZK USDSGD USDHKD USDTHB USDCNH EURTRY EURZAR EURSEK EURNOK EURDKK EURPLN EURHUF EURCZK EURSGD GBPZAR GBPTRY GBPSEK GBPNOK GBPSGD AUDSGD SGDJPY";
@@ -174,13 +177,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const user = await getAuthUser();
   if (user) {
-    enterApp(user);
+    await enterApp(user);
   } else {
     showLogin();
   }
 
   onAuthChange((nextUser) => {
-    if (nextUser) enterApp(nextUser);
+    if (nextUser && document.getElementById("appShell").classList.contains("hidden")) enterApp(nextUser);
     else showLogin();
   });
 
@@ -189,6 +192,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 function bindAuth() {
   document.getElementById("loginForm").addEventListener("submit", handleLogin);
+  document.getElementById("signupBtn").addEventListener("click", handleSignup);
   document.getElementById("logoutBtn").addEventListener("click", handleLogout);
   document.getElementById("accountLogoutBtn").addEventListener("click", handleLogout);
   document.getElementById("accountExportBtn").addEventListener("click", () => document.getElementById("exportDataBtn").click());
@@ -208,7 +212,7 @@ async function handleLogin(event) {
   try {
     const user = await signIn(email, password);
     document.getElementById("loginPass").value = "";
-    enterApp(user);
+    await enterApp(user);
   } catch (error) {
     message.textContent = error.message || "Unable to sign in.";
     document.getElementById("loginPass").value = "";
@@ -219,6 +223,36 @@ async function handleLogin(event) {
   }
 }
 
+
+async function handleSignup() {
+  const emailInput = document.getElementById("loginUser");
+  const passwordInput = document.getElementById("loginPass");
+  const message = document.getElementById("loginMessage");
+  const button = document.getElementById("signupBtn");
+  const email = emailInput.value.trim();
+  const password = passwordInput.value;
+
+  if (!email || password.length < 6) {
+    message.textContent = "Enter an email and a password with at least 6 characters.";
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = "Creating...";
+  message.textContent = "";
+
+  try {
+    const result = await signUp(email, password);
+    message.textContent = result.session
+      ? "Account created and signed in."
+      : "Account created. Check your email to confirm it, then sign in.";
+  } catch (error) {
+    message.textContent = error.message || "Unable to create the account.";
+  } finally {
+    button.disabled = false;
+    button.textContent = "Create account";
+  }
+}
 async function handleLogout() {
   try {
     await signOut();
@@ -230,10 +264,11 @@ async function handleLogout() {
   showLogin();
 }
 
-function enterApp(user) {
+async function enterApp(user) {
   currentAuthUser = user || currentAuthUser;
   document.getElementById("loginScreen").classList.add("hidden");
   document.getElementById("appShell").classList.remove("hidden");
+  await initializeCloudState(currentAuthUser);
   hydrateSettingsForms();
   renderAll();
 }
@@ -312,6 +347,54 @@ function mergeUniqueById(primary, additions) {
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  scheduleCloudSave();
+}
+
+function scheduleCloudSave() {
+  if (!cloudSyncReady || !currentAuthUser?.id || currentAuthUser.id === "local-development-user") return;
+  clearTimeout(cloudSyncTimer);
+  cloudSyncTimer = setTimeout(async () => {
+    try {
+      await saveCloudState(currentAuthUser.id, state);
+      setCloudStatus("Synced", "ok");
+    } catch (error) {
+      console.error("Cloud sync failed", error);
+      setCloudStatus("Sync pending", "warn");
+    }
+  }, 700);
+}
+
+function setCloudStatus(label, tone = "") {
+  const status = document.getElementById("cloudSyncStatus");
+  if (!status) return;
+  status.textContent = label;
+  status.className = "pill" + (tone === "warn" ? " warn" : "");
+}
+
+async function initializeCloudState(user) {
+  cloudSyncReady = false;
+  if (!user?.id || user.id === "local-development-user") {
+    cloudSyncReady = true;
+    setCloudStatus("Local mode");
+    return;
+  }
+
+  setCloudStatus("Connecting...");
+  try {
+    const cloud = await loadCloudState(user.id);
+    if (cloud?.state) {
+      state = mergeState(structuredClone(defaultState), cloud.state);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } else {
+      await saveCloudState(user.id, state);
+    }
+    setCloudStatus("Synced", "ok");
+  } catch (error) {
+    console.error("Cloud initialization failed", error);
+    setCloudStatus("Cloud setup required", "warn");
+  } finally {
+    cloudSyncReady = true;
+  }
 }
 
 function uid(prefix) {

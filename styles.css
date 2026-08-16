@@ -1616,3 +1616,12 @@ body.compact-mode .metrics-grid, body.compact-mode .split-layout, body.compact-m
   .calendar-day { min-height: 48px; }
   .weekly-summary { grid-template-columns: 1fr 1fr; }
 }
+
+.login-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+@media (max-width: 420px) {
+  .login-actions { grid-template-columns: 1fr; }
+}

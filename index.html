@@ -27,7 +27,10 @@
         </label>
 
         <span class="form-message" id="loginMessage"></span>
-        <button class="primary-button" type="submit">Sign in</button>
+        <div class="login-actions">
+          <button class="secondary-button" id="signupBtn" type="button">Create account</button>
+          <button class="primary-button" type="submit">Sign in</button>
+        </div>
       </form>
     </div>
 
@@ -630,11 +633,11 @@
                   <p class="eyebrow">Data</p>
                   <h3>Journal storage</h3>
                 </div>
-                <span class="pill">Local</span>
+                <span class="pill" id="cloudSyncStatus">Connecting...</span>
               </div>
               <div class="account-detail">
                 <span>Storage location</span>
-                <strong>This browser</strong>
+                <strong>Supabase + this browser</strong>
               </div>
               <div class="account-detail">
                 <span>Session</span>

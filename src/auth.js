@@ -41,6 +41,16 @@ export async function signIn(email, password) {
   return data.user;
 }
 
+
+export async function signUp(email, password) {
+  if (localMode) throw new Error("Account creation is unavailable in local mode.");
+  if (!supabase) {
+    throw new Error("Supabase is not configured. Add the required environment variables.");
+  }
+  const { data, error } = await supabase.auth.signUp({ email, password });
+  if (error) throw error;
+  return data;
+}
 export async function signOut() {
   if (localMode) {
     sessionStorage.removeItem(localSessionKey);
