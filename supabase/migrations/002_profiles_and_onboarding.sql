@@ -18,6 +18,10 @@ from auth.users
 on conflict (user_id) do nothing;
 alter table public.profiles enable row level security;
 
+drop policy if exists "Users can read their own profile" on public.profiles;
+drop policy if exists "Users can update their own profile" on public.profiles;
+drop trigger if exists set_profiles_updated_at on public.profiles;
+
 create policy "Users can read their own profile"
 on public.profiles for select
 using (auth.uid() = user_id);
