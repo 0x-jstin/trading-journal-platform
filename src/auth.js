@@ -42,12 +42,36 @@ export async function signIn(email, password) {
 }
 
 
-export async function signUp(email, password) {
+export async function signUp({ email, password, fullName, username }) {
   if (localMode) throw new Error("Account creation is unavailable in local mode.");
   if (!supabase) {
     throw new Error("Supabase is not configured. Add the required environment variables.");
   }
-  const { data, error } = await supabase.auth.signUp({ email, password });
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { full_name: fullName, username } },
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function verifySignupCode(email, token) {
+  if (!supabase) throw new Error("Supabase is not configured.");
+  const { data, error } = await supabase.auth.verifyOtp({ email, token, type: "signup" });
+  if (error) throw error;
+  return data;
+}
+
+export async function resendSignupEmail(email) {
+  if (!supabase) throw new Error("Supabase is not configured.");
+  const { error } = await supabase.auth.resend({ type: "signup", email });
+  if (error) throw error;
+}
+
+export async function deleteCurrentAccount() {
+  if (!supabase) throw new Error("Supabase is not configured.");
+  const { data, error } = await supabase.functions.invoke("delete-account", { body: {} });
   if (error) throw error;
   return data;
 }

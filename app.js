@@ -1,5 +1,5 @@
-import { getAuthUser, onAuthChange, signIn, signOut, signUp } from "./src/auth.js";
-import { loadCloudState, saveCloudState } from "./src/cloud.js";
+import { deleteCurrentAccount, getAuthUser, onAuthChange, resendSignupEmail, signIn, signOut, signUp, verifySignupCode } from "./src/auth.js";
+import { completeOnboarding, loadCloudState, loadProfile, saveCloudState } from "./src/cloud.js";
 
 const STORAGE_KEY = "trading-journal-platform-v1";
 const ASSET_CATALOG_VERSION = 3;
@@ -106,6 +106,9 @@ let currentAuthUser = null;
 let cloudSyncTimer = null;
 let cloudSyncReady = false;
 let authFormMode = "signin";
+let pendingVerificationEmail = "";
+let currentProfile = null;
+let tutorialStep = 0;
 
 function buildDefaultAssets() {
   const fxSymbols = "EURUSD GBPUSD USDJPY USDCHF USDCAD AUDUSD NZDUSD EURGBP EURJPY EURCHF EURCAD EURAUD EURNZD GBPJPY GBPCHF GBPCAD GBPAUD GBPNZD AUDJPY AUDNZD AUDCAD AUDCHF NZDJPY NZDCAD NZDCHF CADJPY CADCHF CHFJPY USDZAR USDMXN USDTRY USDSEK USDNOK USDDKK USDPLN USDHUF USDCZK USDSGD USDHKD USDTHB USDCNH EURTRY EURZAR EURSEK EURNOK EURDKK EURPLN EURHUF EURCZK EURSGD GBPZAR GBPTRY GBPSEK GBPNOK GBPSGD AUDSGD SGDJPY";
@@ -195,6 +198,11 @@ function bindAuth() {
   document.getElementById("loginForm").addEventListener("submit", handleLogin);
   document.getElementById("authModeBtn").addEventListener("click", toggleAuthMode);
   document.getElementById("authSwitchBtn").addEventListener("click", toggleAuthMode);
+  document.getElementById("verifyCodeBtn").addEventListener("click", handleVerifyCode);
+  document.getElementById("resendCodeBtn").addEventListener("click", handleResendCode);
+  document.getElementById("accountDeleteBtn").addEventListener("click", handleDeleteAccount);
+  document.getElementById("tutorialNextBtn").addEventListener("click", advanceTutorial);
+  document.getElementById("tutorialSkipBtn").addEventListener("click", finishTutorial);
   document.getElementById("logoutBtn").addEventListener("click", handleLogout);
   document.getElementById("accountLogoutBtn").addEventListener("click", handleLogout);
   document.getElementById("accountExportBtn").addEventListener("click", () => document.getElementById("exportDataBtn").click());
@@ -235,11 +243,13 @@ async function handleSignup() {
   const email = document.getElementById("loginUser").value.trim();
   const password = document.getElementById("loginPass").value;
   const confirmation = document.getElementById("loginConfirmPass").value;
+  const fullName = document.getElementById("signupName").value.trim();
+  const username = document.getElementById("signupUsername").value.trim();
   const message = document.getElementById("loginMessage");
   const button = document.getElementById("authSubmitBtn");
 
-  if (!email || password.length < 6) {
-    message.textContent = "Enter an email and a password with at least 6 characters.";
+  if (!email || password.length < 6 || !fullName || !/^[A-Za-z0-9_]{3,24}$/.test(username)) {
+    message.textContent = "Complete every field. Usernames use 3-24 letters, numbers, or underscores.";
     return;
   }
 
@@ -254,14 +264,11 @@ async function handleSignup() {
   message.textContent = "";
 
   try {
-    const result = await signUp(email, password);
-    message.textContent = result.session
-      ? "Account created and signed in."
-      : "Account created. Check your email to confirm it, then sign in.";
-    if (!result.session) {
-      authFormMode = "signin";
-      updateAuthMode();
-      message.textContent = "Account created. Check your email to confirm it, then sign in.";
+    const result = await signUp({ email, password, fullName, username });
+    if (result.session && result.user) {
+      await enterApp(result.user);
+    } else {
+      showVerification(email);
     }
   } catch (error) {
     message.textContent = error.message || "Unable to create the account.";
@@ -278,9 +285,12 @@ function toggleAuthMode() {
 
 function updateAuthMode() {
   const signup = authFormMode === "signup";
+  document.getElementById("signupFields").classList.toggle("hidden", !signup);
   document.getElementById("confirmPasswordField").classList.toggle("hidden", !signup);
   document.getElementById("passwordHint").classList.toggle("hidden", !signup);
   document.getElementById("loginConfirmPass").required = signup;
+  document.getElementById("signupName").required = signup;
+  document.getElementById("signupUsername").required = signup;
   document.getElementById("loginPass").autocomplete = signup ? "new-password" : "current-password";
   document.getElementById("authSubmitBtn").textContent = signup ? "Create account" : "Sign in";
   document.getElementById("authModeBtn").textContent = signup ? "Back to sign in" : "Create account";
@@ -306,14 +316,21 @@ async function enterApp(user) {
   document.getElementById("loginScreen").classList.add("hidden");
   document.getElementById("appShell").classList.remove("hidden");
   await initializeCloudState(currentAuthUser);
+  await loadCurrentProfile();
   hydrateSettingsForms();
   renderAll();
+  await showFirstRunTutorial();
 }
 
 function showLogin() {
   document.getElementById("appShell").classList.add("hidden");
   document.getElementById("loginScreen").classList.remove("hidden");
+  document.getElementById("loginForm").classList.remove("hidden");
+  document.getElementById("verificationPanel").classList.add("hidden");
+  pendingVerificationEmail = "";
   document.getElementById("loginForm").reset();
+  authFormMode = "signin";
+  updateAuthMode();
   document.getElementById("loginMessage").textContent = "";
   document.getElementById("loginUser").focus();
 }
@@ -579,7 +596,8 @@ function showView(name) {
 
 
 function renderAccount() {
-  document.getElementById("accountUsername").textContent = currentAuthUser?.email || "Trader";
+  document.getElementById("accountUsername").textContent = currentProfile?.username ? "@" + currentProfile.username : currentAuthUser?.email || "Trader";
+  document.getElementById("accountFullName").textContent = currentProfile?.full_name || currentAuthUser?.email || "Authenticated trader";
 }
 function bindForms() {
   document.getElementById("newTradeForm").addEventListener("submit", handleNewTrade);
@@ -2167,6 +2185,127 @@ function tradeShotsHtml(trade) {
   const shots = [["Before", trade.beforeImage], ["After", trade.afterImage]].filter((item) => item[1]);
   if (!shots.length) return '<span class="no-shot">No charts</span>';
   return '<div class="trade-shots">' + shots.map(([label, source]) => '<a class="trade-shot" href="' + source + '" target="_blank" rel="noopener" title="' + label + ' chart"><img src="' + source + '" alt="' + label + ' chart for trade ' + trade.number + '" /></a>').join("") + '</div>';
+}
+
+
+async function loadCurrentProfile() {
+  if (!currentAuthUser?.id || currentAuthUser.id === "local-development-user") {
+    currentProfile = {
+      full_name: currentAuthUser?.email || "Local trader",
+      username: "local_trader",
+      onboarding_completed: true,
+    };
+    return currentProfile;
+  }
+  try {
+    currentProfile = await loadProfile(currentAuthUser.id);
+  } catch (error) {
+    console.error("Profile load failed", error);
+    currentProfile = null;
+  }
+  return currentProfile;
+}
+
+async function showFirstRunTutorial() {
+  if (!currentProfile || currentProfile.onboarding_completed) return;
+  tutorialStep = 0;
+  renderTutorialStep();
+  document.getElementById("tutorialBackdrop").classList.remove("hidden");
+}
+
+function renderTutorialStep() {
+  const steps = [
+    {
+      title: "Plan before execution",
+      copy: "Document the setup, invalidation, direction, and strategy before opening a position.",
+    },
+    {
+      title: "Protect the process",
+      copy: "Use checklists and risk limits while the trade is live. A clean decision matters more than one outcome.",
+    },
+    {
+      title: "Review and improve",
+      copy: "Close trades with screenshots, notes, and an execution score. Analytics will reveal the habits behind your results.",
+    },
+  ];
+  const step = steps[tutorialStep];
+  document.getElementById("tutorialStepLabel").textContent = String(tutorialStep + 1).padStart(2, "0") + " / " + String(steps.length).padStart(2, "0");
+  document.getElementById("tutorialTitle").textContent = step.title;
+  document.getElementById("tutorialCopy").textContent = step.copy;
+  document.getElementById("tutorialNextBtn").textContent = tutorialStep === steps.length - 1 ? "Start journaling" : "Next";
+}
+
+async function advanceTutorial() {
+  if (tutorialStep < 2) {
+    tutorialStep += 1;
+    renderTutorialStep();
+    return;
+  }
+  await finishTutorial();
+}
+
+async function finishTutorial() {
+  document.getElementById("tutorialBackdrop").classList.add("hidden");
+  if (currentProfile) currentProfile.onboarding_completed = true;
+  try {
+    await completeOnboarding(currentAuthUser?.id);
+  } catch (error) {
+    console.error("Could not save tutorial completion", error);
+  }
+}
+
+function showVerification(email) {
+  pendingVerificationEmail = email;
+  document.getElementById("loginForm").classList.add("hidden");
+  document.getElementById("verificationPanel").classList.remove("hidden");
+  document.getElementById("verificationCode").value = "";
+  document.getElementById("verificationMessage").textContent = "We sent a confirmation link and code to " + email + ".";
+}
+
+async function handleVerifyCode() {
+  const token = document.getElementById("verificationCode").value.trim();
+  const message = document.getElementById("verificationMessage");
+  if (!pendingVerificationEmail || !token) {
+    message.textContent = "Enter the confirmation code from your email.";
+    return;
+  }
+  try {
+    const result = await verifySignupCode(pendingVerificationEmail, token);
+    if (result.user) await enterApp(result.user);
+  } catch (error) {
+    message.textContent = error.message || "The confirmation code is invalid or expired.";
+  }
+}
+
+async function handleResendCode() {
+  const message = document.getElementById("verificationMessage");
+  try {
+    await resendSignupEmail(pendingVerificationEmail);
+    message.textContent = "A new confirmation email was sent.";
+  } catch (error) {
+    message.textContent = error.message || "Unable to resend the confirmation email.";
+  }
+}
+
+async function handleDeleteAccount() {
+  const confirmation = prompt('Type DELETE to permanently remove your account and journal data.');
+  if (confirmation !== "DELETE") return;
+  const button = document.getElementById("accountDeleteBtn");
+  button.disabled = true;
+  button.textContent = "Deleting...";
+  try {
+    await deleteCurrentAccount();
+    localStorage.removeItem(STORAGE_KEY);
+    state = structuredClone(defaultState);
+    currentAuthUser = null;
+    currentProfile = null;
+    cloudSyncReady = false;
+    showLogin();
+  } catch (error) {
+    alert(error.message || "Account deletion failed. The delete-account function may not be deployed yet.");
+    button.disabled = false;
+    button.textContent = "Delete account";
+  }
 }
 
 function escapeHtml(value) {

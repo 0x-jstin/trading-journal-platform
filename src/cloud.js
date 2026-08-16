@@ -29,3 +29,22 @@ export async function saveCloudState(userId, state) {
 
   if (error) throw error;
 }
+export async function loadProfile(userId) {
+  if (!supabase || !userId) return null;
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("full_name, username, onboarding_completed")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+export async function completeOnboarding(userId) {
+  if (!supabase || !userId) return;
+  const { error } = await supabase
+    .from("profiles")
+    .update({ onboarding_completed: true })
+    .eq("user_id", userId);
+  if (error) throw error;
+}

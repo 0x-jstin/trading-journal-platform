@@ -26,7 +26,16 @@
           <input id="loginPass" type="password" autocomplete="current-password" minlength="6" required />
         </label>
 
-        <label class="hidden" id="confirmPasswordField">
+        <div class="signup-fields hidden" id="signupFields">
+          <label>
+            Full name
+            <input id="signupName" type="text" autocomplete="name" />
+          </label>
+          <label>
+            Username
+            <input id="signupUsername" type="text" autocomplete="username" autocapitalize="none" pattern="[A-Za-z0-9_]{3,24}" />
+          </label>
+        </div>        <label class="hidden" id="confirmPasswordField">
           Confirm password
           <input id="loginConfirmPass" type="password" autocomplete="new-password" minlength="6" />
         </label>
@@ -38,7 +47,20 @@
           <button class="primary-button" id="authSubmitBtn" type="submit">Sign in</button>
         </div>
         <button class="text-button auth-switch" id="authSwitchBtn" type="button">Need an account? Create one</button>      </form>
-    </div>
+      <section class="verification-panel hidden" id="verificationPanel">
+        <p class="eyebrow">Check your email</p>
+        <h3>Confirm your account</h3>
+        <p>Use the email link or enter the confirmation code from the message.</p>
+        <label>
+          Confirmation code
+          <input id="verificationCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" />
+        </label>
+        <div class="login-actions">
+          <button class="secondary-button" id="resendCodeBtn" type="button">Resend email</button>
+          <button class="primary-button" id="verifyCodeBtn" type="button">Verify code</button>
+        </div>
+        <span class="form-message" id="verificationMessage"></span>
+      </section>    </div>
 
     <div class="app-shell hidden" id="appShell">
       <aside class="sidebar" aria-label="Primary navigation">
@@ -629,8 +651,11 @@
               <div class="account-avatar" aria-hidden="true">TJ</div>
               <p class="eyebrow">Signed in as</p>
               <h3 id="accountUsername">Trader</h3>
-              <p>Your journal session is active on this device.</p>
-              <button class="secondary-button" id="accountLogoutBtn" type="button">Log out</button>
+              <p id="accountFullName">Your journal session is active on this device.</p>
+              <div class="account-actions">
+                <button class="secondary-button" id="accountLogoutBtn" type="button">Log out</button>
+              <button class="secondary-button danger-text" id="accountDeleteBtn" type="button">Delete account</button>
+              </div>
             </section>
 
             <section class="panel">
@@ -693,6 +718,17 @@
       </article>
     </template>
 
-    <script type="module" src="./app.js"></script>
+    <div class="tutorial-backdrop hidden" id="tutorialBackdrop">
+      <section class="tutorial-modal" role="dialog" aria-modal="true" aria-labelledby="tutorialTitle">
+        <div class="tutorial-progress"><span id="tutorialStepLabel">01 / 03</span><span class="pill">First session</span></div>
+        <p class="eyebrow">Quick start</p>
+        <h2 id="tutorialTitle">Build a repeatable process</h2>
+        <p id="tutorialCopy">Trading Journal helps you document the plan before the trade, then review execution after it closes.</p>
+        <div class="tutorial-actions">
+          <button class="secondary-button" id="tutorialSkipBtn" type="button">Skip tutorial</button>
+          <button class="primary-button" id="tutorialNextBtn" type="button">Next</button>
+        </div>
+      </section>
+    </div>    <script type="module" src="./app.js"></script>
   </body>
 </html>

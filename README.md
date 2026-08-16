@@ -49,3 +49,28 @@ Do not enable `VITE_AUTH_MODE=local` in production.
 - Output directory: `dist`
 - Add the Supabase variables separately to Preview and Production.
 - Deploy `develop` as previews and `main` as production.
+
+## Account setup migration
+
+Run supabase/migrations/002_profiles_and_onboarding.sql after the initial schema.
+
+## Link and code email confirmation
+
+In Supabase, open Authentication -> Email Templates -> Confirm signup and include both variables:
+
+    <p><a href="{{ .ConfirmationURL }}">Confirm account</a></p>
+    <p>Confirmation code: <strong>{{ .Token }}</strong></p>
+
+This lets users confirm with either the link or the code inside the app.
+
+## Delete-account Edge Function
+
+Deploy supabase/functions/delete-account/index.ts as a Supabase Edge Function named delete-account.
+
+The function requires the standard project secrets:
+
+- SUPABASE_URL
+- SUPABASE_ANON_KEY
+- SUPABASE_SERVICE_ROLE_KEY
+
+Keep JWT verification enabled. The browser sends the current user's access token, and the function verifies that token before deleting the account.
