@@ -2,6 +2,7 @@ import { deleteCurrentAccount, getAuthUser, onAuthChange, resendSignupEmail, sig
 import { completeOnboarding, loadCloudState, loadProfile, saveCloudState } from "./src/cloud.js";
 
 const STORAGE_KEY = "trading-journal-platform-v1";
+const STORAGE_OWNER_KEY = "trading-journal-platform-legacy-owner";
 const ASSET_CATALOG_VERSION = 3;
 const RESULT_OPTIONS = ["TP", "SL", "Miss", "BE"];
 const RULE_LABELS = {
@@ -94,7 +95,8 @@ const defaultState = {
   weeklyReviews: {},
 };
 
-let state = loadState();
+let activeStorageKey = STORAGE_KEY;
+let state = loadState(activeStorageKey);
 let preChecks = {};
 let liveInChecks = {};
 let livePostChecks = {};
@@ -187,8 +189,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   onAuthChange((nextUser) => {
-    if (nextUser && document.getElementById("appShell").classList.contains("hidden")) enterApp(nextUser);
-    else showLogin();
+    if (!nextUser) {
+      showLogin();
+    } else if (document.getElementById("appShell").classList.contains("hidden")) {
+      enterApp(nextUser);
+    }
   });
 
   setInterval(renderLockout, 1000);
@@ -335,21 +340,20 @@ function showLogin() {
   document.getElementById("loginUser").focus();
 }
 
-function loadState() {
+function loadState(storageKey = activeStorageKey) {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = localStorage.getItem(storageKey);
     if (!saved) return structuredClone(defaultState);
     const parsed = JSON.parse(saved);
     const merged = mergeState(structuredClone(defaultState), parsed);
     if (Number(parsed.assetCatalogVersion || 0) < ASSET_CATALOG_VERSION) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+      localStorage.setItem(storageKey, JSON.stringify(merged));
     }
     return merged;
   } catch {
     return structuredClone(defaultState);
   }
 }
-
 function mergeState(base, saved) {
   const savedAssets = Array.isArray(saved.assets) ? saved.assets : base.assets;
   const savedAssetCatalogVersion = Number(saved.assetCatalogVersion || 0);
@@ -400,7 +404,7 @@ function mergeUniqueById(primary, additions) {
 }
 
 function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  localStorage.setItem(activeStorageKey, JSON.stringify(state));
   scheduleCloudSave();
 }
 
@@ -428,29 +432,42 @@ function setCloudStatus(label, tone = "") {
 async function initializeCloudState(user) {
   cloudSyncReady = false;
   if (!user?.id || user.id === "local-development-user") {
+    activeStorageKey = STORAGE_KEY;
+    state = loadState(activeStorageKey);
     cloudSyncReady = true;
     setCloudStatus("Local mode");
     return;
   }
 
+  activeStorageKey = STORAGE_KEY + ":" + user.id;
+  const existingUserCache = localStorage.getItem(activeStorageKey);
+  const legacyOwner = localStorage.getItem(STORAGE_OWNER_KEY);
+  let localCandidate = existingUserCache ? loadState(activeStorageKey) : structuredClone(defaultState);
+
+  if (!existingUserCache && !legacyOwner) {
+    localCandidate = loadState(STORAGE_KEY);
+    localStorage.setItem(STORAGE_OWNER_KEY, user.id);
+  }
+
+  state = localCandidate;
   setCloudStatus("Connecting...");
   try {
     const cloud = await loadCloudState(user.id);
     if (cloud?.state) {
       state = mergeState(structuredClone(defaultState), cloud.state);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } else {
       await saveCloudState(user.id, state);
     }
+    localStorage.setItem(activeStorageKey, JSON.stringify(state));
     setCloudStatus("Synced", "ok");
   } catch (error) {
     console.error("Cloud initialization failed", error);
-    setCloudStatus("Cloud setup required", "warn");
+    localStorage.setItem(activeStorageKey, JSON.stringify(state));
+    setCloudStatus("Sync pending", "warn");
   } finally {
     cloudSyncReady = true;
   }
 }
-
 function uid(prefix) {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
@@ -2295,7 +2312,7 @@ async function handleDeleteAccount() {
   button.textContent = "Deleting...";
   try {
     await deleteCurrentAccount();
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(activeStorageKey);
     state = structuredClone(defaultState);
     currentAuthUser = null;
     currentProfile = null;

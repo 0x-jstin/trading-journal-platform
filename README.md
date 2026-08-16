@@ -2,75 +2,30 @@
 
 ## Branch workflow
 
-- `main`: stable production releases
-- `develop`: tested development changes
-- `feature/*`: isolated feature work
+- main: stable production releases
+- develop: tested development changes
+- feature/*: isolated work
 
 ## Local development
 
-1. Install dependencies:
+1. Install dependencies with npm.cmd install.
+2. Create .env.local from .env.example.
+3. Run the app with npm.cmd run dev.
+4. Build for production with npm.cmd run build.
 
-   ```powershell
-   npm.cmd install
-   ```
+## Supabase
 
-2. Create `.env.local` from `.env.example`.
+Use SUPABASE_SETUP.md as the canonical setup guide.
 
-3. Run the app:
+Run supabase/setup.sql in the Supabase SQL Editor. It is safe to rerun after partial setup and reconciles tables, row-level security policies, storage, triggers, and existing user profiles.
 
-   ```powershell
-   npm.cmd run dev
-   ```
+Configure the Confirm signup email template with both ConfirmationURL and Token variables so users can verify by link or code.
 
-4. Build for production:
-
-   ```powershell
-   npm.cmd run build
-   ```
-
-## Supabase setup
-
-1. Create separate Supabase projects for development and production.
-2. Run `supabase/migrations/001_initial_schema.sql` in each project's SQL editor.
-3. Enable Email authentication in Supabase Authentication.
-4. Create the private account that will own the journal.
-5. Set these environment variables:
-
-   ```text
-   VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-   VITE_SUPABASE_ANON_KEY=YOUR_PUBLISHABLE_ANON_KEY
-   ```
-
-Do not enable `VITE_AUTH_MODE=local` in production.
+Deploy supabase/functions/delete-account/index.ts as delete-account with JWT verification enabled. Supabase injects the SUPABASE-prefixed function secrets automatically; never place the service-role key in browser code or tracked files.
 
 ## Vercel
 
-- Build command: `npm run build`
-- Output directory: `dist`
-- Add the Supabase variables separately to Preview and Production.
-- Deploy `develop` as previews and `main` as production.
-
-## Account setup migration
-
-Run supabase/migrations/002_profiles_and_onboarding.sql after the initial schema.
-
-## Link and code email confirmation
-
-In Supabase, open Authentication -> Email Templates -> Confirm signup and include both variables:
-
-    <p><a href="{{ .ConfirmationURL }}">Confirm account</a></p>
-    <p>Confirmation code: <strong>{{ .Token }}</strong></p>
-
-This lets users confirm with either the link or the code inside the app.
-
-## Delete-account Edge Function
-
-Deploy supabase/functions/delete-account/index.ts as a Supabase Edge Function named delete-account.
-
-The function requires the standard project secrets:
-
-- SUPABASE_URL
-- SUPABASE_ANON_KEY
-- SUPABASE_SERVICE_ROLE_KEY
-
-Keep JWT verification enabled. The browser sends the current user's access token, and the function verifies that token before deleting the account.
+- Build command: npm run build
+- Output directory: dist
+- Add Supabase variables separately to Preview and Production.
+- Deploy develop as previews and main as production.
