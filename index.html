@@ -21,17 +21,23 @@
           <input id="loginUser" type="email" autocomplete="username" autocapitalize="none" spellcheck="false" required />
         </label>
 
-        <label>
+                <label>
           Password
-          <input id="loginPass" type="password" autocomplete="current-password" required />
+          <input id="loginPass" type="password" autocomplete="current-password" minlength="6" required />
         </label>
 
+        <label class="hidden" id="confirmPasswordField">
+          Confirm password
+          <input id="loginConfirmPass" type="password" autocomplete="new-password" minlength="6" />
+        </label>
+
+        <p class="password-hint hidden" id="passwordHint">Use at least 6 characters. A longer passphrase is better.</p>
         <span class="form-message" id="loginMessage"></span>
         <div class="login-actions">
-          <button class="secondary-button" id="signupBtn" type="button">Create account</button>
-          <button class="primary-button" type="submit">Sign in</button>
+          <button class="secondary-button" id="authModeBtn" type="button">Create account</button>
+          <button class="primary-button" id="authSubmitBtn" type="submit">Sign in</button>
         </div>
-      </form>
+        <button class="text-button auth-switch" id="authSwitchBtn" type="button">Need an account? Create one</button>      </form>
     </div>
 
     <div class="app-shell hidden" id="appShell">

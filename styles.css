@@ -1625,3 +1625,14 @@ body.compact-mode .metrics-grid, body.compact-mode .split-layout, body.compact-m
 @media (max-width: 420px) {
   .login-actions { grid-template-columns: 1fr; }
 }
+.password-hint {
+  margin: -7px 0 0;
+  color: var(--muted);
+  font-size: .78rem;
+}
+.auth-switch {
+  justify-self: center;
+  color: var(--muted);
+  font-size: .8rem;
+}
+.auth-switch:hover { color: var(--teal); }

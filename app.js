@@ -105,6 +105,7 @@ let calendarCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1
 let currentAuthUser = null;
 let cloudSyncTimer = null;
 let cloudSyncReady = false;
+let authFormMode = "signin";
 
 function buildDefaultAssets() {
   const fxSymbols = "EURUSD GBPUSD USDJPY USDCHF USDCAD AUDUSD NZDUSD EURGBP EURJPY EURCHF EURCAD EURAUD EURNZD GBPJPY GBPCHF GBPCAD GBPAUD GBPNZD AUDJPY AUDNZD AUDCAD AUDCHF NZDJPY NZDCAD NZDCHF CADJPY CADCHF CHFJPY USDZAR USDMXN USDTRY USDSEK USDNOK USDDKK USDPLN USDHUF USDCZK USDSGD USDHKD USDTHB USDCNH EURTRY EURZAR EURSEK EURNOK EURDKK EURPLN EURHUF EURCZK EURSGD GBPZAR GBPTRY GBPSEK GBPNOK GBPSGD AUDSGD SGDJPY";
@@ -192,7 +193,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 function bindAuth() {
   document.getElementById("loginForm").addEventListener("submit", handleLogin);
-  document.getElementById("signupBtn").addEventListener("click", handleSignup);
+  document.getElementById("authModeBtn").addEventListener("click", toggleAuthMode);
+  document.getElementById("authSwitchBtn").addEventListener("click", toggleAuthMode);
   document.getElementById("logoutBtn").addEventListener("click", handleLogout);
   document.getElementById("accountLogoutBtn").addEventListener("click", handleLogout);
   document.getElementById("accountExportBtn").addEventListener("click", () => document.getElementById("exportDataBtn").click());
@@ -200,10 +202,16 @@ function bindAuth() {
 
 async function handleLogin(event) {
   event.preventDefault();
+
+  if (authFormMode === "signup") {
+    await handleSignup();
+    return;
+  }
+
   const email = document.getElementById("loginUser").value.trim();
   const password = document.getElementById("loginPass").value;
   const message = document.getElementById("loginMessage");
-  const button = event.submitter;
+  const button = document.getElementById("authSubmitBtn");
 
   message.textContent = "";
   button.disabled = true;
@@ -223,22 +231,26 @@ async function handleLogin(event) {
   }
 }
 
-
 async function handleSignup() {
-  const emailInput = document.getElementById("loginUser");
-  const passwordInput = document.getElementById("loginPass");
+  const email = document.getElementById("loginUser").value.trim();
+  const password = document.getElementById("loginPass").value;
+  const confirmation = document.getElementById("loginConfirmPass").value;
   const message = document.getElementById("loginMessage");
-  const button = document.getElementById("signupBtn");
-  const email = emailInput.value.trim();
-  const password = passwordInput.value;
+  const button = document.getElementById("authSubmitBtn");
 
   if (!email || password.length < 6) {
     message.textContent = "Enter an email and a password with at least 6 characters.";
     return;
   }
 
+  if (password !== confirmation) {
+    message.textContent = "Passwords do not match.";
+    document.getElementById("loginConfirmPass").focus();
+    return;
+  }
+
   button.disabled = true;
-  button.textContent = "Creating...";
+  button.textContent = "Creating account...";
   message.textContent = "";
 
   try {
@@ -246,13 +258,38 @@ async function handleSignup() {
     message.textContent = result.session
       ? "Account created and signed in."
       : "Account created. Check your email to confirm it, then sign in.";
+    if (!result.session) {
+      authFormMode = "signin";
+      updateAuthMode();
+      message.textContent = "Account created. Check your email to confirm it, then sign in.";
+    }
   } catch (error) {
     message.textContent = error.message || "Unable to create the account.";
   } finally {
     button.disabled = false;
-    button.textContent = "Create account";
+    button.textContent = authFormMode === "signup" ? "Create account" : "Sign in";
   }
 }
+
+function toggleAuthMode() {
+  authFormMode = authFormMode === "signin" ? "signup" : "signin";
+  updateAuthMode();
+}
+
+function updateAuthMode() {
+  const signup = authFormMode === "signup";
+  document.getElementById("confirmPasswordField").classList.toggle("hidden", !signup);
+  document.getElementById("passwordHint").classList.toggle("hidden", !signup);
+  document.getElementById("loginConfirmPass").required = signup;
+  document.getElementById("loginPass").autocomplete = signup ? "new-password" : "current-password";
+  document.getElementById("authSubmitBtn").textContent = signup ? "Create account" : "Sign in";
+  document.getElementById("authModeBtn").textContent = signup ? "Back to sign in" : "Create account";
+  document.getElementById("authSwitchBtn").textContent = signup
+    ? "Already have an account? Sign in"
+    : "Need an account? Create one";
+  document.getElementById("loginMessage").textContent = "";
+}
+
 async function handleLogout() {
   try {
     await signOut();
