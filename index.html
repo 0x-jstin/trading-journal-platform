@@ -1,0 +1,689 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Trading Journal Platform</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="login-screen" id="loginScreen">
+      <form class="login-card" id="loginForm">
+        <div class="login-brand">
+          <div class="brand-mark" aria-hidden="true">TJ</div>
+          <div>
+            <h1>Trading Journal</h1><p>Strategy execution lab</p>
+          </div>
+        </div>
+
+        <label>
+          Username
+          <input id="loginUser" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required />
+        </label>
+
+        <label>
+          Password
+          <input id="loginPass" type="password" autocomplete="current-password" required />
+        </label>
+
+        <span class="form-message" id="loginMessage"></span>
+        <button class="primary-button" type="submit">Sign in</button>
+      </form>
+    </div>
+
+    <div class="app-shell hidden" id="appShell">
+      <aside class="sidebar" aria-label="Primary navigation">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">TJ</div>
+          <div>
+            <h1>Trading Journal</h1><p>Strategy execution lab</p>
+          </div>
+        </div>
+
+        <nav class="nav-tabs" id="navTabs" aria-label="Sections">
+          <button class="nav-tab active" data-view="dashboard" type="button">
+            <span class="icon" aria-hidden="true">&#9638;</span>
+            <span>Dashboard</span>
+          </button>
+          <button class="nav-tab" data-view="setups" type="button">
+            <span class="icon" aria-hidden="true">&#9671;</span>
+            <span>Setups</span>
+          </button>
+          <button class="nav-tab" data-view="live" type="button">
+            <span class="icon" aria-hidden="true">&#9678;</span>
+            <span>Live Trade</span>
+          </button>
+          <button class="nav-tab" data-view="journal" type="button">
+            <span class="icon" aria-hidden="true">&#9776;</span>
+            <span>Journal</span>
+          </button>
+          <button class="nav-tab" data-view="settings" type="button">
+            <span class="icon" aria-hidden="true">&#9881;</span>
+            <span>Settings</span>
+          </button>
+          <button class="nav-tab" data-view="account" type="button">
+            <span class="icon" aria-hidden="true">&#9673;</span>
+            <span>Account</span>
+          </button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="mini-label">100-trade challenge</div>
+          <div class="progress-rail" aria-hidden="true">
+            <div class="progress-bar" id="challengeProgress"></div>
+          </div>
+          <div class="mini-stat" id="challengeText">0 / 100</div>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Execution first</p>
+            <h2 id="viewTitle">Dashboard</h2>
+          </div>
+          <div class="topbar-actions">
+            <span class="market-status"><i></i> Journal online</span>
+            <button class="ghost-button" id="exportDataBtn" type="button">Export</button>
+            <label class="ghost-button import-label" for="importDataInput">Import</label>
+            <input id="importDataInput" type="file" accept="application/json" />
+            <button class="ghost-button" id="logoutBtn" type="button">Log out</button>
+          </div>
+        </header>
+
+        <section class="banner" id="disciplineBanner"></section>
+
+        <section class="lockout hidden" id="lockoutBanner">
+          <div>
+            <strong>Cool-off active</strong>
+            <span id="lockoutText"></span>
+          </div>
+          <button class="text-button" id="clearLockoutBtn" type="button">Clear</button>
+        </section>
+
+        <section class="view active" id="view-dashboard" aria-labelledby="dashboard-title">
+          <div class="dashboard-cta">
+            <div>
+              <p class="eyebrow">Execute</p>
+              <strong>Log a new trade</strong>
+              <span>Runs the pre-trade checklist gate before anything is recorded.</span>
+            </div>
+            <button class="primary-button" data-goto="new-trade" type="button">New Trade</button>
+          </div>
+
+          <div class="metrics-grid">
+            <article class="metric">
+              <span class="metric-label">Rule compliance</span>
+              <strong id="metricCompliance">0%</strong>
+              <span id="metricComplianceMeta">No closed trades</span>
+            </article>
+            <article class="metric">
+              <span class="metric-label">Average execution</span>
+              <strong id="metricScore">0.0</strong>
+              <span id="metricScoreMeta">Score out of 10</span>
+            </article>
+            <article class="metric">
+              <span class="metric-label">Win rate</span>
+              <strong id="metricWinRate">0%</strong>
+              <span id="metricWinMeta">TP vs closed trades</span>
+            </article>
+            <article class="metric">
+              <span class="metric-label">Net R</span>
+              <strong id="metricNetR">0.00R</strong>
+              <span id="metricProfitMeta">$0.00 profit</span>
+            </article>
+            <article class="metric">
+              <span class="metric-label">Setup discipline</span>
+              <strong id="metricPlanned">0%</strong>
+              <span id="metricPlannedMeta">No setups documented</span>
+            </article>
+          </div>
+
+          <div class="insights-grid">
+            <section class="panel analytics-panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Performance</p>
+                  <h3>Equity curves</h3>
+                </div>
+                <span class="pill" id="chartTradeCount">0 trades</span>
+              </div>
+              <div class="chart-stack">
+                <div class="chart-block">
+                  <div class="chart-label"><span>Cumulative R</span><strong id="chartRTotal">0.00R</strong></div>
+                  <canvas id="rCurveChart" height="180"></canvas>
+                </div>
+                <div class="chart-block">
+                  <div class="chart-label"><span>Cumulative P&amp;L</span><strong id="chartProfitTotal">$0.00</strong></div>
+                  <canvas id="profitCurveChart" height="180"></canvas>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel streak-panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Discipline</p>
+                  <h3>Execution streaks</h3>
+                </div>
+              </div>
+              <div class="streak-stats">
+                <div><span>Current clean streak</span><strong id="currentStreak">0</strong></div>
+                <div><span>Best clean streak</span><strong id="bestStreak">0</strong></div>
+                <div><span>Last 10 compliant</span><strong id="recentCompliance">0%</strong></div>
+              </div>
+              <p class="account-note" id="streakMessage">Close trades to begin tracking execution consistency.</p>
+            </section>
+          </div>
+
+          <div class="review-grid">
+            <section class="panel calendar-panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Calendar</p>
+                  <h3 id="calendarTitle">Trading month</h3>
+                </div>
+                <div class="calendar-actions">
+                  <button class="icon-button" id="calendarPrev" type="button" aria-label="Previous month" title="Previous month">&#8249;</button>
+                  <button class="icon-button" id="calendarToday" type="button" aria-label="Current month" title="Current month">&#9673;</button>
+                  <button class="icon-button" id="calendarNext" type="button" aria-label="Next month" title="Next month">&#8250;</button>
+                </div>
+              </div>
+              <div class="calendar-weekdays" aria-hidden="true"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+              <div class="trade-calendar" id="tradeCalendar"></div>
+            </section>
+
+            <section class="panel weekly-panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Review</p>
+                  <h3>This week</h3>
+                </div>
+                <span class="pill" id="weeklyRange">Current week</span>
+              </div>
+              <div id="weeklySummary" class="weekly-summary"></div>
+              <label>
+                Focus for next week
+                <textarea id="weeklyFocus" rows="3" placeholder="One behavior to repeat or correct"></textarea>
+              </label>
+              <button class="secondary-button" id="saveWeeklyFocus" type="button">Save Focus</button>
+            </section>
+          </div>
+          <div class="split-layout">
+            <section class="panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Today</p>
+                  <h3>Risk limits</h3>
+                </div>
+                <button class="icon-button" data-goto="settings" type="button" title="Open settings" aria-label="Open settings">Set</button>
+              </div>
+              <div class="risk-status" id="riskStatus"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Focus</p>
+                  <h3>Active trade</h3>
+                </div>
+                <button class="icon-button" data-goto="live" type="button" title="Open live tracker" aria-label="Open live tracker">Go</button>
+              </div>
+              <div id="activeTradeSummary" class="empty-state"></div>
+            </section>
+          </div>
+
+          <section class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Breakdowns</p>
+                <h3>Strategy performance</h3>
+              </div>
+            </div>
+            <div id="strategyBreakdown" class="breakdown-grid"></div>
+          </section>
+        </section>
+
+        <section class="view" id="view-setups" aria-labelledby="setups-title">
+          <form class="panel form-grid" id="ideaForm">
+            <div class="panel-heading form-span">
+              <div>
+                <p class="eyebrow">Document</p>
+                <h3>Trade idea</h3>
+              </div>
+              <span class="pill" id="ideaFormMode">New setup</span>
+            </div>
+
+            <input id="ideaId" type="hidden" />
+
+            <div class="form-span idea-top">
+              <div class="pair-picker-label">
+                <label for="ideaAssetSearch">Pair / instrument</label>
+                <input
+                  id="ideaAssetSearch"
+                  type="search"
+                  placeholder="Search symbol, market, or name"
+                  autocomplete="off"
+                  aria-controls="ideaAsset"
+                />
+                <select id="ideaAsset" size="6" required aria-label="Matching instruments"></select>
+              </div>
+
+              <div class="idea-stack">
+                <label>
+                  Strategy profile
+                  <select id="ideaStrategy" required></select>
+                </label>
+                <label>
+                  Direction
+                  <select id="ideaDirection" required></select>
+                </label>
+                <label>
+                  Conviction
+                  <select id="ideaConviction"></select>
+                </label>
+              </div>
+            </div>
+
+            <label>
+              <span class="label-row">Entry price <small class="hint">optional</small></span>
+              <input id="ideaEntry" type="number" step="0.00001" min="0" />
+            </label>
+
+            <label>
+              <span class="label-row">Stop loss <small class="hint">optional</small></span>
+              <input id="ideaStop" type="number" step="0.00001" min="0" />
+            </label>
+
+            <label>
+              <span class="label-row">Take profit <small class="hint">optional</small></span>
+              <input id="ideaTarget" type="number" step="0.00001" min="0" />
+            </label>
+
+            <label>
+              Timeframe
+              <input id="ideaTimeframe" type="text" placeholder="4H bias, 15m execution" />
+            </label>
+
+            <label>
+              <span class="label-row">Valid until <small class="hint">optional</small></span>
+              <input id="ideaValidUntil" type="date" />
+            </label>
+
+            <label>
+              <span class="label-row">Chart link <small class="hint">optional</small></span>
+              <input id="ideaChartUrl" type="url" placeholder="https://www.tradingview.com/x/..." />
+            </label>
+
+            <label class="form-span">
+              Trigger - what must happen before you enter
+              <textarea id="ideaTrigger" rows="2" placeholder="Sweep of Asian high, then 15m displacement back inside the range"></textarea>
+            </label>
+
+            <label class="form-span">
+              Invalidation - what kills this idea
+              <textarea id="ideaInvalidation" rows="2" placeholder="4H close back below the point of interest"></textarea>
+            </label>
+
+            <label class="form-span">
+              Notes
+              <textarea id="ideaNotes" rows="3" placeholder="Context, confluences, what would make this A+"></textarea>
+            </label>
+
+            <div class="form-span form-actions">
+              <span id="ideaFormMessage" class="form-message"></span>
+              <button class="secondary-button" id="cancelIdeaEdit" type="button">Cancel</button>
+              <button class="primary-button" type="submit">Save Setup</button>
+            </div>
+          </form>
+
+          <section class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Watchlist</p>
+                <h3>Documented setups</h3>
+              </div>
+            </div>
+            <div class="status-filter" id="ideaFilters"></div>
+            <div class="idea-grid" id="ideaList"></div>
+          </section>
+        </section>
+
+        <section class="view" id="view-new-trade" aria-labelledby="new-trade-title">
+          <form class="panel form-grid" id="newTradeForm">
+            <div class="panel-heading form-span">
+              <div>
+                <p class="eyebrow">Create</p>
+                <h3>New trade setup</h3>
+              </div>
+            </div>
+
+            <label>
+              Strategy profile
+              <select id="tradeStrategy" required></select>
+            </label>
+
+            <div class="pair-picker-label">
+              <label for="assetSearch">Pair / instrument</label>
+              <input
+                id="assetSearch"
+                type="search"
+                placeholder="Search symbol, market, or name"
+                autocomplete="off"
+                aria-controls="tradeAsset"
+              />
+              <select id="tradeAsset" size="6" required aria-label="Matching instruments"></select>
+            </div>
+
+            <label>
+              Entry price
+              <input id="entryPrice" type="number" step="0.00001" min="0" required />
+            </label>
+
+            <label>
+              Stop loss
+              <input id="stopLoss" type="number" step="0.00001" min="0" required />
+            </label>
+
+            <label>
+              Take profit
+              <input id="takeProfit" type="number" step="0.00001" min="0" required />
+            </label>
+
+            <label>
+              Position size
+              <input id="positionSize" type="number" step="0.01" min="0" required />
+            </label>
+
+            <div class="form-span">
+              <div class="checklist-heading">
+                <div>
+                  <p class="eyebrow">Gate</p>
+                  <h3>Pre-trade checklist</h3>
+                </div>
+                <span id="preChecklistStatus" class="pill">0 / 0</span>
+              </div>
+              <div id="preTradeChecklist" class="checklist"></div>
+            </div>
+
+            <div class="form-span form-actions">
+              <span id="newTradeMessage" class="form-message"></span>
+              <button class="primary-button" id="openTradeBtn" type="submit">Open Trade</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="view" id="view-live" aria-labelledby="live-title">
+          <section class="panel" id="liveTradePanel"></section>
+        </section>
+
+        <section class="view" id="view-journal" aria-labelledby="journal-title">
+          <section class="panel table-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">History</p>
+                <h3>Journal table</h3>
+              </div>
+              <button class="ghost-button" id="clearClosedTradesBtn" type="button">Clear Closed</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Trade #</th>
+                    <th>Pair</th>
+                    <th>Strategy</th>
+                    <th>Setup</th>
+                    <th>Result</th>
+                    <th>Score</th>
+                    <th>Rules</th>
+                    <th>R / Profit</th>
+                    <th>Charts</th>
+                    <th>Post-trade notes</th>
+                  </tr>
+                </thead>
+                <tbody id="journalBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section class="view" id="view-settings" aria-labelledby="settings-title">
+          <div class="settings-grid">
+            <section class="panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Profiles</p>
+                  <h3>Trading systems</h3>
+                </div>
+              </div>
+              <form class="stacked-form" id="strategyForm">
+                <input id="strategyId" type="hidden" />
+                <label>
+                  Strategy name
+                  <input id="strategyName" type="text" required placeholder="London session continuation" />
+                </label>
+                <label>
+                  Trading style
+                  <input id="strategyStyle" type="text" required placeholder="Intraday, swing, scalp" />
+                </label>
+                <label>
+                  Timeframes
+                  <input id="strategyTimeframes" type="text" required placeholder="4H bias, 15m execution" />
+                </label>
+                <label>
+                  Bias logic
+                  <textarea id="strategyBias" rows="3" required placeholder="Define when directional bias is valid"></textarea>
+                </label>
+                <div class="form-actions">
+                  <button class="secondary-button" id="cancelStrategyEdit" type="button">Cancel</button>
+                  <button class="primary-button" type="submit">Save Strategy</button>
+                </div>
+              </form>
+              <div class="item-list" id="strategyList"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Markets</p>
+                  <h3>Allowed instruments</h3>
+                </div>
+              </div>
+              <form class="stacked-form" id="assetForm">
+                <input id="assetId" type="hidden" />
+                <label>
+                  Market
+                  <select id="assetMarket">
+                    <option>FX</option>
+                    <option>Crypto</option>
+                    <option>Synthetic Indices</option>
+                    <option>Indices</option>
+                    <option>Commodities</option>
+                    <option>Futures</option>
+                  </select>
+                </label>
+                <label>
+                  Symbol
+                  <input id="assetSymbol" type="text" required placeholder="EURUSD" />
+                </label>
+                <label>
+                  Display name
+                  <input id="assetName" type="text" required placeholder="Euro / US Dollar" />
+                </label>
+                <div class="toggle-row">
+                  <label><input id="assetWeekdays" type="checkbox" checked /> Weekdays</label>
+                  <label><input id="assetWeekends" type="checkbox" /> Weekends</label>
+                  <label><input id="assetEnabled" type="checkbox" checked /> Enabled</label>
+                </div>
+                <div class="form-actions">
+                  <button class="secondary-button" id="cancelAssetEdit" type="button">Cancel</button>
+                  <button class="primary-button" type="submit">Save Asset</button>
+                </div>
+              </form>
+              <div class="item-list" id="assetList"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Limits</p>
+                  <h3>Daily risk rules</h3>
+                </div>
+              </div>
+              <form class="stacked-form" id="riskForm">
+                <label>
+                  Max daily losses
+                  <input id="maxLosses" type="number" min="0" step="1" required />
+                </label>
+                <label>
+                  Max daily wins
+                  <input id="maxWins" type="number" min="0" step="1" required />
+                </label>
+                <label>
+                  Max total trades
+                  <input id="maxTrades" type="number" min="0" step="1" required />
+                </label>
+                <label>
+                  Motivational banner
+                  <input id="bannerText" type="text" required />
+                </label>
+                <button class="primary-button" type="submit">Save Limits</button>
+              </form>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Rules</p>
+                  <h3>Strategy rule lists</h3>
+                </div>
+              </div>
+              <form class="stacked-form" id="ruleForm">
+                <input id="ruleId" type="hidden" />
+                <label>
+                  Rule category
+                  <select id="ruleCategory">
+                    <option value="strategy">Strategy rules</option>
+                    <option value="entry">Entry criteria</option>
+                    <option value="indicator">Indicator rules</option>
+                    <option value="protection">Capital protection</option>
+                  </select>
+                </label>
+                <label>
+                  Rule text
+                  <input id="ruleText" type="text" required placeholder="Only take A+ setups" />
+                </label>
+                <div class="form-actions">
+                  <button class="secondary-button" id="cancelRuleEdit" type="button">Cancel</button>
+                  <button class="primary-button" type="submit">Save Rule</button>
+                </div>
+              </form>
+              <div class="rule-columns" id="ruleLists"></div>
+            </section>
+
+            <section class="panel wide-panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Checklist builder</p>
+                  <h3>Pre / in / post-trade steps</h3>
+                </div>
+              </div>
+              <form class="inline-form" id="checklistForm">
+                <input id="checklistId" type="hidden" />
+                <label>
+                  Phase
+                  <select id="checklistPhase">
+                    <option value="pre">Pre-trade</option>
+                    <option value="in">In-trade</option>
+                    <option value="post">Post-trade</option>
+                  </select>
+                </label>
+                <label class="grow">
+                  Checklist item
+                  <input id="checklistText" type="text" required placeholder="Bias confirmed" />
+                </label>
+                <label class="checkbox-label">
+                  <input id="checklistMandatory" type="checkbox" checked />
+                  Mandatory
+                </label>
+                <button class="secondary-button" id="cancelChecklistEdit" type="button">Cancel</button>
+                <button class="primary-button" type="submit">Save Item</button>
+              </form>
+              <div class="checklist-columns" id="checklistLists"></div>
+            </section>
+          </div>
+        </section>
+        <section class="view" id="view-account" aria-labelledby="account-title">
+          <div class="account-grid">
+            <section class="panel account-identity">
+              <div class="account-avatar" aria-hidden="true">TJ</div>
+              <p class="eyebrow">Signed in as</p>
+              <h3 id="accountUsername">Trader</h3>
+              <p>Your journal session is active on this device.</p>
+              <button class="secondary-button" id="accountLogoutBtn" type="button">Log out</button>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Data</p>
+                  <h3>Journal storage</h3>
+                </div>
+                <span class="pill">Local</span>
+              </div>
+              <div class="account-detail">
+                <span>Storage location</span>
+                <strong>This browser</strong>
+              </div>
+              <div class="account-detail">
+                <span>Session</span>
+                <strong>Ends when you log out</strong>
+              </div>
+              <p class="account-note">Export a backup before clearing browser data or moving to another device.</p>
+              <button class="primary-button" id="accountExportBtn" type="button">Export Journal</button>
+            </section>
+            <section class="panel account-preferences">
+              <div class="panel-heading">
+                <div><p class="eyebrow">Preferences</p><h3>Journal appearance</h3></div>
+              </div>
+              <form class="stacked-form" id="preferencesForm">
+                <label>Theme<select id="preferenceTheme"><option value="dark">Dark</option><option value="light">Light</option><option value="system">System</option></select></label>
+                <label>Currency<select id="preferenceCurrency"><option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option><option value="ISK">ISK</option><option value="JPY">JPY</option></select></label>
+                <label>Timezone<select id="preferenceTimezone"><option value="local">Device local</option><option value="UTC">UTC</option><option value="Atlantic/Reykjavik">Atlantic/Reykjavik</option><option value="Europe/London">Europe/London</option><option value="America/New_York">America/New_York</option><option value="Asia/Tokyo">Asia/Tokyo</option></select></label>
+                <label class="checkbox-label"><input id="preferenceCompact" type="checkbox" /> Compact dashboard density</label>
+                <button class="primary-button" type="submit">Save Preferences</button>
+              </form>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Account</p>
+                  <h3>Session security</h3>
+                </div>
+              </div>
+              <div class="account-status"><i></i><span>Authenticated session</span></div>
+              <p class="account-note">This is a client-side journal. Keep the device and exported backup secure.</p>
+            </section>
+          </div>
+        </section>      </main>
+    </div>
+
+    <template id="listItemTemplate">
+      <article class="list-item">
+        <div>
+          <strong></strong>
+          <p></p>
+        </div>
+        <div class="item-actions">
+          <button class="icon-button toggle-item" type="button" title="Toggle enabled" aria-label="Toggle enabled">On</button>
+          <button class="icon-button edit-item" type="button" title="Edit" aria-label="Edit">Ed</button>
+          <button class="icon-button delete-item danger" type="button" title="Delete" aria-label="Delete">X</button>
+        </div>
+      </article>
+    </template>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
