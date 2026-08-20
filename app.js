@@ -1,10 +1,8 @@
+import { deleteCurrentAccount, getAuthUser, onAuthChange, resendSignupEmail, signIn, signOut, signUp, verifySignupCode } from "./src/auth.js";
+import { completeOnboarding, loadCloudState, loadProfile, saveCloudState } from "./src/cloud.js";
+
 const STORAGE_KEY = "trading-journal-platform-v1";
-const SESSION_KEY = "trading-journal-session";
-// Client-side gate only. This keeps the journal from being read by someone who opens the page,
-// but the check runs in the browser and these values ship in this file, so it is privacy, not
-// security. Edit the two values below to change the credentials.
-const AUTH_USERNAME = "0x_jstin";
-const AUTH_PASSWORD = "gamerx12";
+const STORAGE_OWNER_KEY = "trading-journal-platform-legacy-owner";
 const ASSET_CATALOG_VERSION = 3;
 const RESULT_OPTIONS = ["TP", "SL", "Miss", "BE"];
 const RULE_LABELS = {
@@ -97,7 +95,8 @@ const defaultState = {
   weeklyReviews: {},
 };
 
-let state = loadState();
+let activeStorageKey = STORAGE_KEY;
+let state = loadState(activeStorageKey);
 let preChecks = {};
 let liveInChecks = {};
 let livePostChecks = {};
@@ -105,6 +104,13 @@ let assetSearchQuery = "";
 let ideaAssetSearchQuery = "";
 let ideaStatusFilter = "all";
 let calendarCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+let currentAuthUser = null;
+let cloudSyncTimer = null;
+let cloudSyncReady = false;
+let authFormMode = "signin";
+let pendingVerificationEmail = "";
+let currentProfile = null;
+let tutorialStep = 0;
 
 function buildDefaultAssets() {
   const fxSymbols = "EURUSD GBPUSD USDJPY USDCHF USDCAD AUDUSD NZDUSD EURGBP EURJPY EURCHF EURCAD EURAUD EURNZD GBPJPY GBPCHF GBPCAD GBPAUD GBPNZD AUDJPY AUDNZD AUDCAD AUDCHF NZDJPY NZDCAD NZDCHF CADJPY CADCHF CHFJPY USDZAR USDMXN USDTRY USDSEK USDNOK USDDKK USDPLN USDHUF USDCZK USDSGD USDHKD USDTHB USDCNH EURTRY EURZAR EURSEK EURNOK EURDKK EURPLN EURHUF EURCZK EURSGD GBPZAR GBPTRY GBPSEK GBPNOK GBPSGD AUDSGD SGDJPY";
@@ -168,98 +174,186 @@ const viewTitles = {
   account: "Account",
 };
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   bindNavigation();
   bindForms();
   bindImportExport();
   bindAuth();
-  if (isAuthenticated()) {
-    enterApp();
+  applyPreferences();
+
+  const user = await getAuthUser();
+  if (user) {
+    await enterApp(user);
   } else {
     showLogin();
   }
+
+  onAuthChange((nextUser) => {
+    if (!nextUser) {
+      showLogin();
+    } else if (document.getElementById("appShell").classList.contains("hidden")) {
+      enterApp(nextUser);
+    }
+  });
+
   setInterval(renderLockout, 1000);
 });
 
-// sessionStorage rather than localStorage: closing the browser ends the session, which is the
-// point of the gate. Wrapped because storage throws on some file:// origins.
-function isAuthenticated() {
-  try {
-    return sessionStorage.getItem(SESSION_KEY) === AUTH_USERNAME;
-  } catch {
-    return false;
-  }
-}
-
 function bindAuth() {
   document.getElementById("loginForm").addEventListener("submit", handleLogin);
+  document.getElementById("authModeBtn").addEventListener("click", toggleAuthMode);
+  document.getElementById("authSwitchBtn").addEventListener("click", toggleAuthMode);
+  document.getElementById("verifyCodeBtn").addEventListener("click", handleVerifyCode);
+  document.getElementById("resendCodeBtn").addEventListener("click", handleResendCode);
+  document.getElementById("accountDeleteBtn").addEventListener("click", handleDeleteAccount);
+  document.getElementById("tutorialNextBtn").addEventListener("click", advanceTutorial);
+  document.getElementById("tutorialSkipBtn").addEventListener("click", finishTutorial);
   document.getElementById("logoutBtn").addEventListener("click", handleLogout);
   document.getElementById("accountLogoutBtn").addEventListener("click", handleLogout);
   document.getElementById("accountExportBtn").addEventListener("click", () => document.getElementById("exportDataBtn").click());
 }
 
-function handleLogin(event) {
+async function handleLogin(event) {
   event.preventDefault();
-  const username = document.getElementById("loginUser").value.trim();
-  const password = document.getElementById("loginPass").value;
-  const message = document.getElementById("loginMessage");
 
-  if (username !== AUTH_USERNAME || password !== AUTH_PASSWORD) {
-    message.textContent = "Incorrect username or password.";
-    document.getElementById("loginPass").value = "";
-    document.getElementById("loginPass").focus();
+  if (authFormMode === "signup") {
+    await handleSignup();
     return;
   }
 
-  try {
-    sessionStorage.setItem(SESSION_KEY, AUTH_USERNAME);
-  } catch {
-    // Storage unavailable: stay signed in for this page view only.
-  }
+  const email = document.getElementById("loginUser").value.trim();
+  const password = document.getElementById("loginPass").value;
+  const message = document.getElementById("loginMessage");
+  const button = document.getElementById("authSubmitBtn");
+
   message.textContent = "";
-  document.getElementById("loginPass").value = "";
-  enterApp();
+  button.disabled = true;
+  button.textContent = "Signing in...";
+
+  try {
+    const user = await signIn(email, password);
+    document.getElementById("loginPass").value = "";
+    await enterApp(user);
+  } catch (error) {
+    message.textContent = error.message || "Unable to sign in.";
+    document.getElementById("loginPass").value = "";
+    document.getElementById("loginPass").focus();
+  } finally {
+    button.disabled = false;
+    button.textContent = "Sign in";
+  }
 }
 
-function handleLogout() {
-  try {
-    sessionStorage.removeItem(SESSION_KEY);
-  } catch {
-    // Nothing to clear.
+async function handleSignup() {
+  const email = document.getElementById("loginUser").value.trim();
+  const password = document.getElementById("loginPass").value;
+  const confirmation = document.getElementById("loginConfirmPass").value;
+  const fullName = document.getElementById("signupName").value.trim();
+  const username = document.getElementById("signupUsername").value.trim();
+  const message = document.getElementById("loginMessage");
+  const button = document.getElementById("authSubmitBtn");
+
+  if (!email || password.length < 6 || !fullName || !/^[A-Za-z0-9_]{3,24}$/.test(username)) {
+    message.textContent = "Complete every field. Usernames use 3-24 letters, numbers, or underscores.";
+    return;
   }
+
+  if (password !== confirmation) {
+    message.textContent = "Passwords do not match.";
+    document.getElementById("loginConfirmPass").focus();
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = "Creating account...";
+  message.textContent = "";
+
+  try {
+    const result = await signUp({ email, password, fullName, username });
+    if (result.session && result.user) {
+      await enterApp(result.user);
+    } else {
+      showVerification(email);
+    }
+  } catch (error) {
+    message.textContent = error.message || "Unable to create the account.";
+  } finally {
+    button.disabled = false;
+    button.textContent = authFormMode === "signup" ? "Create account" : "Sign in";
+  }
+}
+
+function toggleAuthMode() {
+  authFormMode = authFormMode === "signin" ? "signup" : "signin";
+  updateAuthMode();
+}
+
+function updateAuthMode() {
+  const signup = authFormMode === "signup";
+  document.getElementById("signupFields").classList.toggle("hidden", !signup);
+  document.getElementById("confirmPasswordField").classList.toggle("hidden", !signup);
+  document.getElementById("passwordHint").classList.toggle("hidden", !signup);
+  document.getElementById("loginConfirmPass").required = signup;
+  document.getElementById("signupName").required = signup;
+  document.getElementById("signupUsername").required = signup;
+  document.getElementById("loginPass").autocomplete = signup ? "new-password" : "current-password";
+  document.getElementById("authSubmitBtn").textContent = signup ? "Create account" : "Sign in";
+  document.getElementById("authModeBtn").textContent = signup ? "Back to sign in" : "Create account";
+  document.getElementById("authSwitchBtn").textContent = signup
+    ? "Already have an account? Sign in"
+    : "Need an account? Create one";
+  document.getElementById("loginMessage").textContent = "";
+}
+
+async function handleLogout() {
+  try {
+    await signOut();
+  } catch (error) {
+    alert(error.message || "Unable to log out.");
+    return;
+  }
+  currentAuthUser = null;
   showLogin();
 }
 
-function enterApp() {
+async function enterApp(user) {
+  currentAuthUser = user || currentAuthUser;
   document.getElementById("loginScreen").classList.add("hidden");
   document.getElementById("appShell").classList.remove("hidden");
+  await initializeCloudState(currentAuthUser);
+  await loadCurrentProfile();
   hydrateSettingsForms();
   renderAll();
+  await showFirstRunTutorial();
 }
 
 function showLogin() {
   document.getElementById("appShell").classList.add("hidden");
   document.getElementById("loginScreen").classList.remove("hidden");
+  document.getElementById("loginForm").classList.remove("hidden");
+  document.getElementById("verificationPanel").classList.add("hidden");
+  pendingVerificationEmail = "";
   document.getElementById("loginForm").reset();
+  authFormMode = "signin";
+  updateAuthMode();
   document.getElementById("loginMessage").textContent = "";
   document.getElementById("loginUser").focus();
 }
 
-function loadState() {
+function loadState(storageKey = activeStorageKey) {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = localStorage.getItem(storageKey);
     if (!saved) return structuredClone(defaultState);
     const parsed = JSON.parse(saved);
     const merged = mergeState(structuredClone(defaultState), parsed);
     if (Number(parsed.assetCatalogVersion || 0) < ASSET_CATALOG_VERSION) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+      localStorage.setItem(storageKey, JSON.stringify(merged));
     }
     return merged;
   } catch {
     return structuredClone(defaultState);
   }
 }
-
 function mergeState(base, saved) {
   const savedAssets = Array.isArray(saved.assets) ? saved.assets : base.assets;
   const savedAssetCatalogVersion = Number(saved.assetCatalogVersion || 0);
@@ -310,9 +404,70 @@ function mergeUniqueById(primary, additions) {
 }
 
 function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  localStorage.setItem(activeStorageKey, JSON.stringify(state));
+  scheduleCloudSave();
 }
 
+function scheduleCloudSave() {
+  if (!cloudSyncReady || !currentAuthUser?.id || currentAuthUser.id === "local-development-user") return;
+  clearTimeout(cloudSyncTimer);
+  cloudSyncTimer = setTimeout(async () => {
+    try {
+      await saveCloudState(currentAuthUser.id, state);
+      setCloudStatus("Synced", "ok");
+    } catch (error) {
+      console.error("Cloud sync failed", error);
+      setCloudStatus("Sync pending", "warn");
+    }
+  }, 700);
+}
+
+function setCloudStatus(label, tone = "") {
+  const status = document.getElementById("cloudSyncStatus");
+  if (!status) return;
+  status.textContent = label;
+  status.className = "pill" + (tone === "warn" ? " warn" : "");
+}
+
+async function initializeCloudState(user) {
+  cloudSyncReady = false;
+  if (!user?.id || user.id === "local-development-user") {
+    activeStorageKey = STORAGE_KEY;
+    state = loadState(activeStorageKey);
+    cloudSyncReady = true;
+    setCloudStatus("Local mode");
+    return;
+  }
+
+  activeStorageKey = STORAGE_KEY + ":" + user.id;
+  const existingUserCache = localStorage.getItem(activeStorageKey);
+  const legacyOwner = localStorage.getItem(STORAGE_OWNER_KEY);
+  let localCandidate = existingUserCache ? loadState(activeStorageKey) : structuredClone(defaultState);
+
+  if (!existingUserCache && !legacyOwner) {
+    localCandidate = loadState(STORAGE_KEY);
+    localStorage.setItem(STORAGE_OWNER_KEY, user.id);
+  }
+
+  state = localCandidate;
+  setCloudStatus("Connecting...");
+  try {
+    const cloud = await loadCloudState(user.id);
+    if (cloud?.state) {
+      state = mergeState(structuredClone(defaultState), cloud.state);
+    } else {
+      await saveCloudState(user.id, state);
+    }
+    localStorage.setItem(activeStorageKey, JSON.stringify(state));
+    setCloudStatus("Synced", "ok");
+  } catch (error) {
+    console.error("Cloud initialization failed", error);
+    localStorage.setItem(activeStorageKey, JSON.stringify(state));
+    setCloudStatus("Sync pending", "warn");
+  } finally {
+    cloudSyncReady = true;
+  }
+}
 function uid(prefix) {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
@@ -458,7 +613,8 @@ function showView(name) {
 
 
 function renderAccount() {
-  document.getElementById("accountUsername").textContent = AUTH_USERNAME;
+  document.getElementById("accountUsername").textContent = currentProfile?.username ? "@" + currentProfile.username : currentAuthUser?.email || "Trader";
+  document.getElementById("accountFullName").textContent = currentProfile?.full_name || currentAuthUser?.email || "Authenticated trader";
 }
 function bindForms() {
   document.getElementById("newTradeForm").addEventListener("submit", handleNewTrade);
@@ -2046,6 +2202,127 @@ function tradeShotsHtml(trade) {
   const shots = [["Before", trade.beforeImage], ["After", trade.afterImage]].filter((item) => item[1]);
   if (!shots.length) return '<span class="no-shot">No charts</span>';
   return '<div class="trade-shots">' + shots.map(([label, source]) => '<a class="trade-shot" href="' + source + '" target="_blank" rel="noopener" title="' + label + ' chart"><img src="' + source + '" alt="' + label + ' chart for trade ' + trade.number + '" /></a>').join("") + '</div>';
+}
+
+
+async function loadCurrentProfile() {
+  if (!currentAuthUser?.id || currentAuthUser.id === "local-development-user") {
+    currentProfile = {
+      full_name: currentAuthUser?.email || "Local trader",
+      username: "local_trader",
+      onboarding_completed: true,
+    };
+    return currentProfile;
+  }
+  try {
+    currentProfile = await loadProfile(currentAuthUser.id);
+  } catch (error) {
+    console.error("Profile load failed", error);
+    currentProfile = null;
+  }
+  return currentProfile;
+}
+
+async function showFirstRunTutorial() {
+  if (!currentProfile || currentProfile.onboarding_completed) return;
+  tutorialStep = 0;
+  renderTutorialStep();
+  document.getElementById("tutorialBackdrop").classList.remove("hidden");
+}
+
+function renderTutorialStep() {
+  const steps = [
+    {
+      title: "Plan before execution",
+      copy: "Document the setup, invalidation, direction, and strategy before opening a position.",
+    },
+    {
+      title: "Protect the process",
+      copy: "Use checklists and risk limits while the trade is live. A clean decision matters more than one outcome.",
+    },
+    {
+      title: "Review and improve",
+      copy: "Close trades with screenshots, notes, and an execution score. Analytics will reveal the habits behind your results.",
+    },
+  ];
+  const step = steps[tutorialStep];
+  document.getElementById("tutorialStepLabel").textContent = String(tutorialStep + 1).padStart(2, "0") + " / " + String(steps.length).padStart(2, "0");
+  document.getElementById("tutorialTitle").textContent = step.title;
+  document.getElementById("tutorialCopy").textContent = step.copy;
+  document.getElementById("tutorialNextBtn").textContent = tutorialStep === steps.length - 1 ? "Start journaling" : "Next";
+}
+
+async function advanceTutorial() {
+  if (tutorialStep < 2) {
+    tutorialStep += 1;
+    renderTutorialStep();
+    return;
+  }
+  await finishTutorial();
+}
+
+async function finishTutorial() {
+  document.getElementById("tutorialBackdrop").classList.add("hidden");
+  if (currentProfile) currentProfile.onboarding_completed = true;
+  try {
+    await completeOnboarding(currentAuthUser?.id);
+  } catch (error) {
+    console.error("Could not save tutorial completion", error);
+  }
+}
+
+function showVerification(email) {
+  pendingVerificationEmail = email;
+  document.getElementById("loginForm").classList.add("hidden");
+  document.getElementById("verificationPanel").classList.remove("hidden");
+  document.getElementById("verificationCode").value = "";
+  document.getElementById("verificationMessage").textContent = "We sent a confirmation link and code to " + email + ".";
+}
+
+async function handleVerifyCode() {
+  const token = document.getElementById("verificationCode").value.trim();
+  const message = document.getElementById("verificationMessage");
+  if (!pendingVerificationEmail || !token) {
+    message.textContent = "Enter the confirmation code from your email.";
+    return;
+  }
+  try {
+    const result = await verifySignupCode(pendingVerificationEmail, token);
+    if (result.user) await enterApp(result.user);
+  } catch (error) {
+    message.textContent = error.message || "The confirmation code is invalid or expired.";
+  }
+}
+
+async function handleResendCode() {
+  const message = document.getElementById("verificationMessage");
+  try {
+    await resendSignupEmail(pendingVerificationEmail);
+    message.textContent = "A new confirmation email was sent.";
+  } catch (error) {
+    message.textContent = error.message || "Unable to resend the confirmation email.";
+  }
+}
+
+async function handleDeleteAccount() {
+  const confirmation = prompt('Type DELETE to permanently remove your account and journal data.');
+  if (confirmation !== "DELETE") return;
+  const button = document.getElementById("accountDeleteBtn");
+  button.disabled = true;
+  button.textContent = "Deleting...";
+  try {
+    await deleteCurrentAccount();
+    localStorage.removeItem(activeStorageKey);
+    state = structuredClone(defaultState);
+    currentAuthUser = null;
+    currentProfile = null;
+    cloudSyncReady = false;
+    showLogin();
+  } catch (error) {
+    alert(error.message || "Account deletion failed. The delete-account function may not be deployed yet.");
+    button.disabled = false;
+    button.textContent = "Delete account";
+  }
 }
 
 function escapeHtml(value) {
