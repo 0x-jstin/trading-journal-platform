@@ -316,20 +316,12 @@
               </div>
             </div>
 
-            <label>
-              <span class="label-row">Entry price <small class="hint">optional</small></span>
-              <input id="ideaEntry" type="number" step="0.00001" min="0" />
-            </label>
-
-            <label>
-              <span class="label-row">Stop loss <small class="hint">optional</small></span>
-              <input id="ideaStop" type="number" step="0.00001" min="0" />
-            </label>
-
-            <label>
-              <span class="label-row">Take profit <small class="hint">optional</small></span>
-              <input id="ideaTarget" type="number" step="0.00001" min="0" />
-            </label>
+            <fieldset class="form-span trade-levels">
+              <legend>Trade levels <small class="hint">optional</small></legend>
+              <label>Entry<input id="ideaEntry" type="number" step="0.00001" min="0" /></label>
+              <label>Stop loss<input id="ideaStop" type="number" step="0.00001" min="0" /></label>
+              <label>Take profit<input id="ideaTarget" type="number" step="0.00001" min="0" /></label>
+            </fieldset>
 
             <label>
               Timeframe
@@ -426,20 +418,12 @@
               <select id="tradeAsset" size="6" required aria-label="Matching instruments"></select>
             </div>
 
-            <label>
-              Entry price
-              <input id="entryPrice" type="number" step="0.00001" min="0" required />
-            </label>
-
-            <label>
-              Stop loss
-              <input id="stopLoss" type="number" step="0.00001" min="0" required />
-            </label>
-
-            <label>
-              Take profit
-              <input id="takeProfit" type="number" step="0.00001" min="0" required />
-            </label>
+            <fieldset class="form-span trade-levels">
+              <legend>Trade levels</legend>
+              <label>Entry<input id="entryPrice" type="number" step="0.00001" min="0" required /></label>
+              <label>Stop loss<input id="stopLoss" type="number" step="0.00001" min="0" required /></label>
+              <label>Take profit<input id="takeProfit" type="number" step="0.00001" min="0" required /></label>
+            </fieldset>
 
             <label>
               Position size

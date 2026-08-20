@@ -382,6 +382,41 @@ button {
   grid-column: 1 / -1;
 }
 
+.trade-levels {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-soft) 58%, transparent);
+}
+
+.trade-levels legend {
+  grid-column: 1 / -1;
+  padding: 0 5px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.trade-levels label {
+  min-width: 0;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.trade-levels input {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding: 8px 9px;
+}
+
 /* Keep controls at their natural height when a taller cell (the pair picker) grows the row. */
 .form-grid > label {
   align-self: start;
