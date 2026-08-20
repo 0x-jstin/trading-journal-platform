@@ -966,6 +966,46 @@ td textarea {
   min-height: 116px;
 }
 
+.analysis-grid select {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.choice-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.choice-buttons button {
+  min-height: 36px;
+  padding: 8px 11px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.choice-buttons button:hover {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.choice-buttons button.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface-soft));
+  color: var(--ink);
+}
+
 .technical-analysis[hidden],
 .linked-setup-update[hidden] {
   display: none;

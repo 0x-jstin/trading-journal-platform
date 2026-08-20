@@ -534,6 +534,29 @@ function setSelectedValues(id, values = []) {
   });
 }
 
+function enhanceChoiceButtons(root) {
+  root.querySelectorAll(".analysis-grid select").forEach((select) => {
+    let buttons = select.nextElementSibling;
+    if (!buttons || !buttons.classList.contains("choice-buttons")) {
+      buttons = document.createElement("div");
+      buttons.className = "choice-buttons";
+      buttons.innerHTML = Array.from(select.options, (option) => `<button type="button" data-choice-value="${escapeHtml(option.value)}" aria-pressed="false">${escapeHtml(option.textContent)}</button>`).join("");
+      select.insertAdjacentElement("afterend", buttons);
+      buttons.addEventListener("click", (event) => {
+        const button = event.target.closest("button");
+        if (!button) return;
+        const option = Array.from(select.options).find((item) => item.value === button.dataset.choiceValue);
+        if (select.multiple) option.selected = !option.selected;
+        else select.value = option.value;
+        const selected = new Set(Array.from(select.selectedOptions, (item) => item.value));
+        buttons.querySelectorAll("button").forEach((item) => item.classList.toggle("active", selected.has(item.dataset.choiceValue)));
+      });
+    }
+    const selected = new Set(Array.from(select.selectedOptions, (item) => item.value));
+    buttons.querySelectorAll("button").forEach((item) => item.classList.toggle("active", selected.has(item.dataset.choiceValue)));
+  });
+}
+
 function readTechnicalAnalysis(prefix) {
   return {
     marketBias: document.getElementById(`${prefix}MarketBias`).value,
@@ -558,6 +581,7 @@ function writeTechnicalAnalysis(prefix, analysis = {}) {
   document.getElementById(`${prefix}ChartPattern`).value = analysis.chartPattern || "None";
   document.getElementById(`${prefix}CandleConfirmation`).value = analysis.candleConfirmation || "";
   document.getElementById(`${prefix}TechnicalThesis`).value = analysis.technicalThesis || "";
+  enhanceChoiceButtons(document.getElementById(`${prefix}MarketBias`).closest(".technical-analysis"));
 }
 
 function technicalAnalysisDetails(analysis) {
@@ -953,6 +977,7 @@ function renderSetupsForm() {
     getEnabledAssets(),
     ideaAssetSearchQuery,
   );
+  enhanceChoiceButtons(document.getElementById("ideaForm"));
 }
 
 function renderIdeaFilters() {
@@ -1243,6 +1268,7 @@ function renderNewTradeForm() {
     getAvailableAssets(),
     assetSearchQuery,
   );
+  enhanceChoiceButtons(document.getElementById("newTradeForm"));
 
   const ideaSelect = document.getElementById("tradeIdeaId");
   const selectedIdeaId = ideaSelect.value;
