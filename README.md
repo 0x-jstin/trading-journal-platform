@@ -1,31 +1,56 @@
 # Trading Journal Platform
 
-## Branch workflow
+A cloud-backed trading journal for planning trades, recording execution, reviewing performance, and improving trading discipline.
 
-- main: stable production releases
-- develop: tested development changes
-- feature/*: isolated work
+## Current Features
 
-## Local development
+- Email and password authentication with email confirmation
+- User profiles and first-run onboarding
+- Cloud journal synchronization through Supabase
+- User-owned data protected by row-level security
+- Private chart-image storage
+- Secure account deletion through a Supabase Edge Function
+- Responsive dashboard, journal, setup, live-trade, and settings views
 
-1. Install dependencies with npm.cmd install.
-2. Create .env.local from .env.example.
-3. Run the app with npm.cmd run dev.
-4. Build for production with npm.cmd run build.
+## Tech Stack
 
-## Supabase
+- Vite
+- Vanilla JavaScript, HTML, and CSS
+- Supabase Auth, Postgres, Storage, and Edge Functions
+- Vercel deployment
 
-Use SUPABASE_SETUP.md as the canonical setup guide.
+## Local Development
 
-Run supabase/setup.sql in the Supabase SQL Editor. It is safe to rerun after partial setup and reconciles tables, row-level security policies, storage, triggers, and existing user profiles.
+Requirements: Node.js 20 or newer, npm, and a configured Supabase project.
 
-Configure the Confirm signup email template with both ConfirmationURL and Token variables so users can verify by link or code.
+    npm.cmd install
 
-Deploy supabase/functions/delete-account/index.ts as delete-account with JWT verification enabled. Supabase injects the SUPABASE-prefixed function secrets automatically; never place the service-role key in browser code or tracked files.
+Create .env.local from .env.example and add:
 
-## Vercel
+    VITE_SUPABASE_URL=your-project-url
+    VITE_SUPABASE_ANON_KEY=your-publishable-key
+
+Run locally with npm.cmd run dev. Build for production with npm.cmd run build.
+
+## Supabase Setup
+
+Follow SUPABASE_SETUP.md for database, authentication, email confirmation, storage, and Edge Function configuration.
+
+Never place SUPABASE_SERVICE_ROLE_KEY in browser code, VITE_ variables, or tracked files.
+
+## Deployment
 
 - Build command: npm run build
 - Output directory: dist
-- Add Supabase variables separately to Preview and Production.
-- Deploy develop as previews and main as production.
+- Production variables: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
+
+    npx.cmd supabase functions deploy delete-account
+    npx.cmd vercel --prod
+
+## Branch Workflow
+
+- main: stable production releases
+- develop: tested development changes
+- feature/*: isolated feature work
+
+See CHANGELOG.md for features, fixes, security changes, and deployment updates.
