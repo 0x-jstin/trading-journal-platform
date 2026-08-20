@@ -114,6 +114,8 @@
             <h2 id="viewTitle">Dashboard</h2>
           </div>
           <div class="topbar-actions">
+            <div class="terminal-ticker"><span class="ticker-live"><i></i> SESSION</span><strong>JOURNAL ONLINE</strong><span class="ticker-divider"></span><span class="ticker-symbol">BTC / USD</span><span class="ticker-value">—</span><span class="ticker-change">Awaiting data</span></div>
+            <kbd class="command-hint">⌘ K</kbd>
             <span class="market-status"><i></i> Journal online</span>
             <button class="ghost-button" id="exportDataBtn" type="button">Export</button>
             <label class="ghost-button import-label" for="importDataInput">Import</label>
@@ -143,13 +145,13 @@
           </div>
 
           <div class="metrics-grid">
-            <article class="metric">
-              <span class="metric-label">Rule compliance</span>
+            <article class="metric metric-primary">
+              <span class="metric-label">Net performance</span>
               <strong id="metricCompliance">0%</strong>
               <span id="metricComplianceMeta">No closed trades</span>
             </article>
             <article class="metric">
-              <span class="metric-label">Average execution</span>
+              <span class="metric-label">Execution score</span>
               <strong id="metricScore">0.0</strong>
               <span id="metricScoreMeta">Score out of 10</span>
             </article>
@@ -159,7 +161,7 @@
               <span id="metricWinMeta">TP vs closed trades</span>
             </article>
             <article class="metric">
-              <span class="metric-label">Net R</span>
+              <span class="metric-label">Net R multiple</span>
               <strong id="metricNetR">0.00R</strong>
               <span id="metricProfitMeta">$0.00 profit</span>
             </article>
