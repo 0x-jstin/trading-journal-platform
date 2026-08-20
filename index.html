@@ -361,6 +361,21 @@
               <textarea id="ideaNotes" rows="3" placeholder="Context, confluences, what would make this A+"></textarea>
             </label>
 
+            <div class="form-span technical-analysis">
+              <div class="checklist-heading"><div><p class="eyebrow">Technical journal</p><h3>Setup analysis</h3></div></div>
+              <div class="analysis-grid">
+                <label>Bias<select id="ideaMarketBias"><option>Bullish</option><option>Bearish</option><option>Neutral</option></select></label>
+                <label>Structure<select id="ideaStructure"><option>Uptrend</option><option>Downtrend</option><option>Range</option></select></label>
+                <label class="form-span">Areas of value<select id="ideaValueAreas" multiple size="4"><option>Support Zones</option><option>Resistance Zones</option><option>Demand Zones</option><option>Supply Zone</option><option>Range High / Range Low</option><option>Trendline Support / Resistance</option><option>Previous Highs / Lows</option><option>Liquidity Levels</option></select></label>
+                <label class="form-span">Price action<select id="ideaPriceAction" multiple size="4"><option>Breakout</option><option>Range Rejection</option><option>Support/Resistance Retest</option><option>Trendline Break</option><option>False Breakout / Liquidity Sweep</option><option>Order Block</option></select></label>
+                <label>RSI<select id="ideaRsi"><option>Bullish</option><option>Bearish</option><option>Neutral</option></select></label>
+                <label>RSI divergence<select id="ideaRsiDivergence"><option>Bullish</option><option>Bearish</option><option>None</option></select></label>
+                <label>Chart pattern<select id="ideaChartPattern"><option>None</option><option>Double Top</option><option>Double Bottom</option><option>Head &amp; Shoulders</option><option>Triangle</option><option>Flag</option></select></label>
+                <label>Candlestick confirmation<input id="ideaCandleConfirmation" type="text" placeholder="Optional" /></label>
+                <label class="form-span">Overall technical thesis<textarea id="ideaTechnicalThesis" rows="3" placeholder="Summarise the setup logic and why the trade makes sense"></textarea></label>
+              </div>
+            </div>
+
             <div class="form-span form-actions">
               <span id="ideaFormMessage" class="form-message"></span>
               <button class="secondary-button" id="cancelIdeaEdit" type="button">Cancel</button>
@@ -394,6 +409,11 @@
               <select id="tradeStrategy" required></select>
             </label>
 
+            <label>
+              Documented setup <small class="hint">optional</small>
+              <select id="tradeIdeaId"></select>
+            </label>
+
             <div class="pair-picker-label">
               <label for="assetSearch">Pair / instrument</label>
               <input
@@ -424,6 +444,26 @@
             <label>
               Position size
               <input id="positionSize" type="number" step="0.01" min="0" required />
+            </label>
+
+            <div class="form-span technical-analysis" id="tradeAnalysisSection">
+              <div class="checklist-heading"><div><p class="eyebrow">Technical journal</p><h3>Trade analysis</h3></div></div>
+              <div class="analysis-grid">
+                <label>Bias<select id="tradeMarketBias"><option>Bullish</option><option>Bearish</option><option>Neutral</option></select></label>
+                <label>Structure<select id="tradeStructure"><option>Uptrend</option><option>Downtrend</option><option>Range</option></select></label>
+                <label class="form-span">Areas of value<select id="tradeValueAreas" multiple size="4"><option>Support Zones</option><option>Resistance Zones</option><option>Demand Zones</option><option>Supply Zone</option><option>Range High / Range Low</option><option>Trendline Support / Resistance</option><option>Previous Highs / Lows</option><option>Liquidity Levels</option></select></label>
+                <label class="form-span">Price action<select id="tradePriceAction" multiple size="4"><option>Breakout</option><option>Range Rejection</option><option>Support/Resistance Retest</option><option>Trendline Break</option><option>False Breakout / Liquidity Sweep</option><option>Order Block</option></select></label>
+                <label>RSI<select id="tradeRsi"><option>Bullish</option><option>Bearish</option><option>Neutral</option></select></label>
+                <label>RSI divergence<select id="tradeRsiDivergence"><option>Bullish</option><option>Bearish</option><option>None</option></select></label>
+                <label>Chart pattern<select id="tradeChartPattern"><option>None</option><option>Double Top</option><option>Double Bottom</option><option>Head &amp; Shoulders</option><option>Triangle</option><option>Flag</option></select></label>
+                <label>Candlestick confirmation<input id="tradeCandleConfirmation" type="text" placeholder="Optional" /></label>
+                <label class="form-span">Technical thesis<textarea id="tradeTechnicalThesis" rows="3" placeholder="Summarise the trade logic"></textarea></label>
+              </div>
+            </div>
+
+            <label class="form-span linked-setup-update" id="tradeUpdateField" hidden>
+              During-trade update <small class="hint">optional</small>
+              <textarea id="tradeDuringUpdate" rows="3" placeholder="What changed after entry, if anything?"></textarea>
             </label>
 
             <div class="form-span">

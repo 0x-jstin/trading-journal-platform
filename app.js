@@ -523,6 +523,55 @@ function getIdea(id) {
   return state.ideas.find((idea) => idea.id === id);
 }
 
+function selectedValues(id) {
+  return Array.from(document.getElementById(id).selectedOptions, (option) => option.value);
+}
+
+function setSelectedValues(id, values = []) {
+  const selected = new Set(values);
+  Array.from(document.getElementById(id).options).forEach((option) => {
+    option.selected = selected.has(option.value);
+  });
+}
+
+function readTechnicalAnalysis(prefix) {
+  return {
+    marketBias: document.getElementById(`${prefix}MarketBias`).value,
+    structure: document.getElementById(`${prefix}Structure`).value,
+    valueAreas: selectedValues(`${prefix}ValueAreas`),
+    priceAction: selectedValues(`${prefix}PriceAction`),
+    rsi: document.getElementById(`${prefix}Rsi`).value,
+    rsiDivergence: document.getElementById(`${prefix}RsiDivergence`).value,
+    chartPattern: document.getElementById(`${prefix}ChartPattern`).value,
+    candleConfirmation: document.getElementById(`${prefix}CandleConfirmation`).value.trim(),
+    technicalThesis: document.getElementById(`${prefix}TechnicalThesis`).value.trim(),
+  };
+}
+
+function writeTechnicalAnalysis(prefix, analysis = {}) {
+  document.getElementById(`${prefix}MarketBias`).value = analysis.marketBias || "Neutral";
+  document.getElementById(`${prefix}Structure`).value = analysis.structure || "Range";
+  setSelectedValues(`${prefix}ValueAreas`, analysis.valueAreas);
+  setSelectedValues(`${prefix}PriceAction`, analysis.priceAction);
+  document.getElementById(`${prefix}Rsi`).value = analysis.rsi || "Neutral";
+  document.getElementById(`${prefix}RsiDivergence`).value = analysis.rsiDivergence || "None";
+  document.getElementById(`${prefix}ChartPattern`).value = analysis.chartPattern || "None";
+  document.getElementById(`${prefix}CandleConfirmation`).value = analysis.candleConfirmation || "";
+  document.getElementById(`${prefix}TechnicalThesis`).value = analysis.technicalThesis || "";
+}
+
+function technicalAnalysisDetails(analysis) {
+  if (!analysis) return "";
+  const items = [
+    ["Market structure", [analysis.marketBias, analysis.structure].filter(Boolean).join(" / ")],
+    ["Areas of value", (analysis.valueAreas || []).join(", ")],
+    ["Price action", (analysis.priceAction || []).join(", ")],
+    ["Technical confluence", [analysis.rsi ? `RSI ${analysis.rsi}` : "", analysis.rsiDivergence && analysis.rsiDivergence !== "None" ? `${analysis.rsiDivergence} divergence` : "", analysis.chartPattern && analysis.chartPattern !== "None" ? analysis.chartPattern : "", analysis.candleConfirmation].filter(Boolean).join("; ")],
+    ["Technical thesis", analysis.technicalThesis],
+  ];
+  return items.filter(([, value]) => value).map(([label, value]) => `<div class="idea-detail"><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`).join("");
+}
+
 // trade.ideaId is the only stored link. "Taken" and "Expired" are derived from it and from
 // validUntil, so there is no idea-side state that can drift out of sync with the journal.
 function effectiveIdeaStatus(idea) {
@@ -1019,6 +1068,7 @@ function renderIdeaCard(idea) {
       <dl class="idea-details">
         ${detail("Trigger", idea.trigger)}
         ${detail("Invalidation", idea.invalidation)}
+        ${technicalAnalysisDetails(idea.technicalAnalysis)}
         ${detail("Notes", idea.notes)}
       </dl>
 
@@ -1104,6 +1154,7 @@ function loadIdeaIntoForm(idea) {
   document.getElementById("ideaTrigger").value = idea.trigger || "";
   document.getElementById("ideaInvalidation").value = idea.invalidation || "";
   document.getElementById("ideaNotes").value = idea.notes || "";
+  writeTechnicalAnalysis("idea", idea.technicalAnalysis);
   document.getElementById("ideaFormMode").textContent = "Editing setup";
   document.getElementById("ideaFormMessage").textContent = "";
   document.getElementById("ideaForm").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1138,6 +1189,7 @@ function handleIdeaSave(event) {
     trigger: document.getElementById("ideaTrigger").value.trim(),
     invalidation: document.getElementById("ideaInvalidation").value.trim(),
     notes: document.getElementById("ideaNotes").value.trim(),
+    technicalAnalysis: readTechnicalAnalysis("idea"),
     status: existing ? existing.status : "watching",
   };
 
@@ -1192,6 +1244,13 @@ function renderNewTradeForm() {
     assetSearchQuery,
   );
 
+  const ideaSelect = document.getElementById("tradeIdeaId");
+  const selectedIdeaId = ideaSelect.value;
+  ideaSelect.innerHTML = ideaOptionsHtml(document.getElementById("tradeAsset").value, selectedIdeaId);
+  ideaSelect.value = selectedIdeaId;
+  updateTradeAnalysisVisibility();
+  ideaSelect.onchange = updateTradeAnalysisVisibility;
+
   const checklist = getActiveChecklist("pre");
   document.getElementById("preTradeChecklist").innerHTML = checklist.length
     ? checklist
@@ -1218,6 +1277,12 @@ function renderNewTradeForm() {
   });
 
   renderNewTradeGate();
+}
+
+function updateTradeAnalysisVisibility() {
+  const linked = Boolean(document.getElementById("tradeIdeaId").value);
+  document.getElementById("tradeAnalysisSection").hidden = linked;
+  document.getElementById("tradeUpdateField").hidden = !linked;
 }
 
 function renderNewTradeGate() {
@@ -1288,6 +1353,9 @@ function handleNewTrade(event) {
     stopLoss: document.getElementById("stopLoss").value,
     takeProfit: document.getElementById("takeProfit").value,
     positionSize: document.getElementById("positionSize").value,
+    ideaId: document.getElementById("tradeIdeaId").value,
+    technicalAnalysis: document.getElementById("tradeIdeaId").value ? null : readTechnicalAnalysis("trade"),
+    duringTradeUpdate: document.getElementById("tradeDuringUpdate").value.trim(),
     preChecklist: Object.fromEntries(checklist.map((item) => [item.id, Boolean(preChecks[item.id])])),
   };
 
@@ -1361,7 +1429,7 @@ function renderLiveTrade() {
       <form class="close-trade-form" id="closeTradeForm">
         <label>
           Documented setup
-          <select id="closeIdeaId">${ideaOptionsHtml(trade.assetId, "")}</select>
+          <select id="closeIdeaId">${ideaOptionsHtml(trade.assetId, trade.ideaId || "")}</select>
         </label>
         <label>
           Result

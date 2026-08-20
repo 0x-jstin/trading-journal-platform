@@ -949,6 +949,38 @@ td textarea {
 
 /* ---------- Trade ideas / setups ---------- */
 
+.technical-analysis {
+  margin-top: 8px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.analysis-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.analysis-grid select[multiple] {
+  min-height: 116px;
+}
+
+.technical-analysis[hidden],
+.linked-setup-update[hidden] {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .analysis-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .analysis-grid .form-span {
+    grid-column: auto;
+  }
+}
+
 /* The setups view stacks two panels directly in .view, which has no gap of its own. */
 #ideaForm {
   margin-bottom: 16px;
