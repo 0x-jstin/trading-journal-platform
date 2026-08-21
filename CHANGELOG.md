@@ -2,7 +2,7 @@
 
 All notable features, fixes, security changes, and deployment updates are documented here.
 
-## 2026-08-21 - Frontend redesign rollback`r`n`r`n### Reverted`r`n`r`n- Reverted the experimental frontend redesign commits to restore the pre-redesign application state.`r`n- Preserved existing authentication, journal, setup, live-trade, settings, Supabase, and Vercel behavior.`r`n`r`n## Unreleased
+## Unreleased
 
 ### Planned
 
