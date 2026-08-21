@@ -715,7 +715,7 @@ function bindForms() {
       document.getElementById("ideaAsset").focus();
     }
   });
-  document.getElementById("ideaForm").addEventListener("submit", handleIdeaSave);          document.getElementById("newSetupBtn")?.addEventListener("click", () => { document.getElementById("ideaForm").classList.remove("hidden"); document.getElementById("ideaForm").scrollIntoView({ behavior: "smooth", block: "start" }); });
+  document.getElementById("ideaForm").addEventListener("submit", handleIdeaSave);
   document.getElementById("cancelIdeaEdit").addEventListener("click", resetIdeaForm);
   document.getElementById("strategyForm").addEventListener("submit", handleStrategySave);
   document.getElementById("assetForm").addEventListener("submit", handleAssetSave);
@@ -1019,12 +1019,12 @@ function renderIdeaList() {
   if (!visible.length) {
     container.innerHTML = state.ideas.length
       ? '<div class="empty-state"><strong>Nothing in this view</strong><span>No documented setups match the selected status.</span></div>'
-      : '<div class="empty-state"><strong>No setups yet</strong><span>Start with a clear plan, then connect it to the trade when you execute.</span><button class="primary-button" data-new-setup-empty type="button">+ New setup</button></div>';
+      : '<div class="empty-state"><strong>No setups documented yet</strong><span>Write up an idea above while it is still objective, then link it to the trade when you journal the outcome.</span></div>';
     return;
   }
 
   container.innerHTML = visible.map(renderIdeaCard).join("");
-  bindIdeaActions(container);  container.querySelector("[data-new-setup-empty]")?.addEventListener("click", () => document.getElementById("newSetupBtn")?.click());
+  bindIdeaActions(container);
 }
 
 function renderIdeaCard(idea) {
