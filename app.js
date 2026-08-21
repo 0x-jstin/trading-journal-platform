@@ -717,7 +717,7 @@ function bindForms() {
     }
   });
   document.getElementById("ideaForm").addEventListener("submit", handleIdeaSave);
-  document.getElementById("startSetupBtn")?.addEventListener("click", () => { document.getElementById("setupEmpty")?.classList.add("hidden"); document.getElementById("ideaForm")?.classList.remove("hidden"); });          document.getElementById("newSetupBtn")?.addEventListener("click", () => { document.getElementById("ideaForm").classList.remove("hidden"); document.getElementById("ideaForm").scrollIntoView({ behavior: "smooth", block: "start" }); });
+  document.getElementById("startSetupBtn")?.addEventListener("click", () => { document.getElementById("setupEmpty")?.classList.add("hidden"); document.getElementById("ideaForm")?.classList.remove("hidden"); });
   document.getElementById("cancelIdeaEdit").addEventListener("click", resetIdeaForm);
   document.getElementById("strategyForm").addEventListener("submit", handleStrategySave);
   document.getElementById("assetForm").addEventListener("submit", handleAssetSave);
