@@ -690,7 +690,8 @@ function renderAccount() {
   document.getElementById("accountFullName").textContent = currentProfile?.full_name || currentAuthUser?.email || "Authenticated trader";
 }
 function bindForms() {
-  document.getElementById("newTradeForm").addEventListener("submit", handleNewTrade);`r`n  document.getElementById("startNewTradeBtn")?.addEventListener("click", () => { document.getElementById("newTradeEmpty")?.classList.add("hidden"); document.getElementById("newTradeForm")?.classList.remove("hidden"); });
+  document.getElementById("newTradeForm").addEventListener("submit", handleNewTrade);
+  document.getElementById("startNewTradeBtn")?.addEventListener("click", () => { document.getElementById("newTradeEmpty")?.classList.add("hidden"); document.getElementById("newTradeForm")?.classList.remove("hidden"); });
   const assetSearch = document.getElementById("assetSearch");
   assetSearch.addEventListener("input", (event) => {
     assetSearchQuery = event.target.value;
@@ -715,7 +716,8 @@ function bindForms() {
       document.getElementById("ideaAsset").focus();
     }
   });
-  document.getElementById("ideaForm").addEventListener("submit", handleIdeaSave);`r`n  document.getElementById("startSetupBtn")?.addEventListener("click", () => { document.getElementById("setupEmpty")?.classList.add("hidden"); document.getElementById("ideaForm")?.classList.remove("hidden"); });          document.getElementById("newSetupBtn")?.addEventListener("click", () => { document.getElementById("ideaForm").classList.remove("hidden"); document.getElementById("ideaForm").scrollIntoView({ behavior: "smooth", block: "start" }); });
+  document.getElementById("ideaForm").addEventListener("submit", handleIdeaSave);
+  document.getElementById("startSetupBtn")?.addEventListener("click", () => { document.getElementById("setupEmpty")?.classList.add("hidden"); document.getElementById("ideaForm")?.classList.remove("hidden"); });          document.getElementById("newSetupBtn")?.addEventListener("click", () => { document.getElementById("ideaForm").classList.remove("hidden"); document.getElementById("ideaForm").scrollIntoView({ behavior: "smooth", block: "start" }); });
   document.getElementById("cancelIdeaEdit").addEventListener("click", resetIdeaForm);
   document.getElementById("strategyForm").addEventListener("submit", handleStrategySave);
   document.getElementById("assetForm").addEventListener("submit", handleAssetSave);
